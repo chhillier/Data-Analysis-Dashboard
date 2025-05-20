@@ -1,4 +1,4 @@
-from Descriptive import Descriptive
+from descriptive import Descriptive
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
