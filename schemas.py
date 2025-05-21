@@ -25,7 +25,7 @@ class PlotParameter(BaseModel):
     hue_col: Optional[str] = None
 
     # For histogram
-    bins: Optional[str] = None
+    bins: Optional[int] = None
 
     # For scatter
     col_name_x: Optional[str] = None
