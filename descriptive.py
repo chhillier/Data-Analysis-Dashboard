@@ -1,6 +1,7 @@
 import seaborn as sns
 import pandas as pd
 import numpy as np
+from typing import List, Optional, Union, Any
 
 # df = sns.load_dataset('diamonds')
 # print(df.head())
@@ -24,13 +25,50 @@ class Descriptive:
         return self.data.describe(include=['category', 'object'])
     def data_info(self):
         return self.data.info()
-    def data_filter(self,col:str,cat:str):
-        if col not in self.data.columns:
-            raise ValueError(f"No columns with that name!")
-        elif not (self.data[col]==cat).any():
-            raise ValueError(f"No values with that name in here!")
-        filtered_data = self.data.loc[self.data[col] == cat]
-        return filtered_data
+    def data_filter(self, col: Union[str, List[str]], value: Union[Any, List[Any]]) -> pd.DataFrame:
+        """
+        Filters the DataFrame.
+        - If col is a string and value is a single item: filters by that single condition.
+        - If col is a List[str] and value is a List[Any]: filters by multiple AND conditions
+        where col[i] must equal value[i]. The lists must be the same length
+        """
+        if isinstance(col, str) and not isinstance(value, list):
+            # --- Handle Single Condition ---
+            single_col_name = col
+            single_value = value
+            if single_col_name not in self.data.columns:
+                raise ValueError(f"Column '{single_col_name}' not found in DataFrame")
+            if not (self.data[single_col_name]== single_value).any():
+                print(f"Warning: Value '{single_value}' not found in column '{single_col_name}'.")
+            return self.data.loc[self.data[single_col_name]==single_value]
+        elif isinstance(col, list) and isinstance(value,list):
+            # ---Handle Multiple AND Conditions ---
+            cols_list = col
+            values_list = value
+
+            if len(cols_list) != len(values_list):
+                raise ValueError("The 'col' list and 'value' list must be of the same length for paired conditions")
+            
+            if not cols_list:
+                return self.data.copy()
+            combined_conditon = pd.Series([True] * len(self.data), index = self.data.index)
+
+            for i in range(len(cols_list)):
+                col_name = cols_list[i]
+                val_to_filter = values_list[i]
+
+                if col_name not in self.data.columns:
+                    raise ValueError(f"Filter error: Column '{col_name}' not found in DataFrame.")
+                
+                combined_conditon &= (self.data[col_name] == val_to_filter)
+            
+            return self.data.loc[combined_conditon]
+        
+        else:
+            raise TypeError("Invalid combination of types for 'col' and 'value'. "
+                            "Provide (str, Any) for a single filter, or (List[str], List[Any])"
+                            "for multiple AND filters. ")
+        
     def data_drop(self,col:str):
         self.data = self.data.drop(col,axis=1)
         return self.data
