@@ -87,12 +87,22 @@ class CSVDataManager(BaseDataManager):
         print(f"CSVDataManager: Loading data from '{self.file_path}'...'")
         return pd.read_csv(self.file_path)
     
-    
-        
+class LiveFeedDataManager(BaseDataManager):
+    def __init__(self, connection_details, source_name="Live_feed_X"):
+                 super().__init__(source_name)
+                 self.connection_details = connection_details
 
+    def _load_data_from_source(self) -> pd.DataFrame:
+        # NEEDS logic to connect to live feed, fetch data, and convert to Dataframe
+        print(f"LiveFeedDataManager: Fetching data for {self.source_name} ...")
+        # more implementation
+        pass
+# --- Global Instance ---
+# For now use the baked in dataset diamonds
 
-    
+default_data_manager: BaseDataManager = DiamondsDatasetManager()
 
+#if __name__ == "__main__":
 
 
     
