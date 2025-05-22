@@ -51,7 +51,7 @@ class Descriptive:
             
             if not cols_list:
                 return self.data.copy()
-            combined_conditon = pd.Series([True] * len(self.data), index = self.data.index)
+            combined_condition = pd.Series([True] * len(self.data), index = self.data.index)
 
             for i in range(len(cols_list)):
                 col_name = cols_list[i]
@@ -60,9 +60,9 @@ class Descriptive:
                 if col_name not in self.data.columns:
                     raise ValueError(f"Filter error: Column '{col_name}' not found in DataFrame.")
                 
-                combined_conditon &= (self.data[col_name] == val_to_filter)
+                combined_condition &= (self.data[col_name] == val_to_filter)
             
-            return self.data.loc[combined_conditon]
+            return self.data.loc[combined_condition]
         
         else:
             raise TypeError("Invalid combination of types for 'col' and 'value'. "
@@ -133,5 +133,7 @@ if __name__=="__main__":
     cross_tab_result = diamonds.cross_tabs(index_names=['cut'],columns_names=['clarity','color'])
     stacked_by_color = cross_tab_result.stack(level='color',future_stack=True)
     print(stacked_by_color)
+
+    print(diamonds.data_filter(col=['cut'], value=['Ideal']))
     
 

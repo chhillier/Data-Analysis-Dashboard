@@ -1,6 +1,6 @@
 import pandas as pd
 import io
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 from descriptive import Descriptive
 import seaborn as sns
 """
@@ -66,12 +66,12 @@ def handle_cross_tabs(des_instance: Descriptive, index_names: List[str], columns
                                            normalize=normalize, margins=margins, **kwargs)
     return cross_tab_df.to_dict("split")
 
-def handle_get_data_filter(des_instance: Descriptive, col: str, cat: str) -> List[Dict[str, Any]]:
+def handle_get_data_filter(des_instance: Descriptive, col: Union[str, List[str]], value: Union[Any, List[Any]]) -> List[Dict[str, Any]]:
     """
     Calls the data_filter method
     Converts the resulting filtered DataFrame to a list of records (dictionaries).
     """
-    filtered_df = des_instance.data_filter(col=col,cat=cat)
+    filtered_df = des_instance.data_filter(col=col,value=value)
     return filtered_df.to_dict('records')
 
 
