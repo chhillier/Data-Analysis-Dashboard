@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 import math
 from typing import Optional, Union, Callable
 class StaticPlots(Descriptive):
-    def __init__(self):
-        diamonds_df = pd.read_csv('diamonds.csv')
-        super().__init__(diamonds_df)
+    def __init__(self, data_df: pd.DataFrame):
+        super().__init__(data_df)
     def _get_estimator_name(self,est):
         if est is None: return "values"
         if isinstance(est, str): return est
@@ -35,10 +34,25 @@ class StaticPlots(Descriptive):
         sns.scatterplot(data=self.data, x= col_name_x, y= col_name_y, ax=ax, **kwargs)
         ax.set_title(f"Scatterplot of {col_name_x} and {col_name_y}")
     
-    def dist_plot(self,col_name:str,kind,col2, **kwargs):
+    def dist_plot(self,
+                  col_name:str,
+                  kind,
+                  hue_col: Optional[str] = None,
+                  **kwargs,
+    ) -> plt.Figure:
+        g = sns.displot(
+            data = self.data,
+            x = col_name,
+            hue= hue_col,
+            kind= kind,
+            **kwargs
+        )
+        title = f"Distribution Plot of '{col_name}' (Kind :{kind})"
+        if hue_col:
+            title += f" by '{hue_col}'"
+        g.figure.suptitle(title, y=1.03)
+        return g.figure
             
-            g = sns.displot(data=self.data,x = col_name, hue=col2, kind = kind, **kwargs) # Example displot
-            g.figure.suptitle("Displot Figure (Price Per Carat by Cut)", y=1.03)
     def count_plot(self, ax, x_col:str, **kwargs) -> int:
         if x_col not in self.categorical_data().columns:
             err_msg = f"Error: {x_col} not found"
@@ -236,8 +250,11 @@ class StaticPlots(Descriptive):
 
 
 if __name__ == "__main__":
-    plots = StaticPlots()
-    df = plots.data
+    from api_data_manager import CSVDataManager
+    instance_of_data = CSVDataManager(file_path="diamonds.csv")
+    instance_of_data.load_and_prepare_data()
+    df = instance_of_data.get_processed_df()
+    plots = StaticPlots(data_df=df)
 
     # --- DATA INSPECTION FOR 'cut' COLUMN (using your 'df' variable) ---
     print("\n--- DATA INSPECTION FOR 'cut' COLUMN ---")
@@ -292,6 +309,6 @@ if __name__ == "__main__":
     ]
     plots.subplots(plot_configurations,
                    figsize=(18,10))
-    plots.dist_plot(col_name='price',kind='hist',col2='cut')
+    plots.dist_plot(col_name='price',kind='hist',hue_col='cut')
     plt.show()
 
