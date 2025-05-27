@@ -77,20 +77,20 @@ class Descriptive:
             include_columns: Optional[List[str]] = None,
             exclude_columns: Optional[List[str]] = None
 
-    ) -> pd.DataFrame:
-        """
-        Applies column inclusion or exclusion to a DataFrame.
-        If include_columns is provided, only those columns are kept.
-        Else if exclude_columns is provided, those columns are dropped.
-        Returns a new DataFrame
-        """
-        current_df = base_df.copy()
+        ) -> pd.DataFrame:
+            """
+            Applies column inclusion or exclusion to a DataFrame.
+            If include_columns is provided, only those columns are kept.
+            Else if exclude_columns is provided, those columns are dropped.
+            Returns a new DataFrame
+            """
+            current_df = base_df.copy()
 
-        if include_columns:
-            #Filter include_columns to only those that actually exist in current_df
-            valid_include_cols = [col for col in include_columns if col in current_df.columns]
-            if not valid_include_cols and include_columns:
-                print(f"Warning: None of the specified include_columns {include_columns} exist ")
+            if include_columns:
+                #Filter include_columns to only those that actually exist in current_df
+                valid_include_cols = [col for col in include_columns if col in current_df.columns]
+                if not valid_include_cols and include_columns:
+                    print(f"Warning: None of the specified include_columns {include_columns} exist ")
     def categorical_data(self):
         cat_columns = self.data.select_dtypes(['object','bool','category','integer']).columns.tolist()
         cat_data = self.data[cat_columns]

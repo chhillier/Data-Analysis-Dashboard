@@ -1,5 +1,6 @@
 from api_data_manager import default_data_manager
 import pandas as pd
+from typing import List, Dict, Any, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Query, Body
 import api_descriptive_handlers as desc_api
@@ -48,6 +49,20 @@ async def health_check():
         is_data_loaded = default_data_manager._is_loaded
     return {"status": "API is running", "data_manager_initialized": True, "data_loaded_successfully": is_data_loaded}
 
-#@app.get("/api/data/columns", tags=[TAG_DATA_INFO])
+@app.get("/api/descriptive/frequency-table", tags=[TAG_DESCRIPTIVE], response_model=Optional[schemas.DataFrameSplitResponse])
+
+async def get_frequency_table_endpoint(
+    column_name: str = Query(..., description="The categorical column name to generate a frequency table for.", examples=["cut"]),
+    df: pd.DataFrame = Depends(get_dataframe_dependency)
+):
+    """
+    Get a frequency table (counts) for a given categorical column.
+    Make sure the api_descriptive_handler.py has:
+    def handle_frequency_table(des_instance: Descriptive, column_name: str, **kwargs)
+        ... (logic using des_instance.frequency_table) ...
+        return freq_table_df.to_dict("split")
+    """
+    #try:
+
 
 

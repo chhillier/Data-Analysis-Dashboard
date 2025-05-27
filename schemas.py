@@ -1,6 +1,30 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
+"""
+Explanation of Code:
+
+This file (`schemas.py`) is basically about defining the 'shape' of the data 
+our API expects to receive and the 'shape' of the data it will send back. 
+We use something called Pydantic models here – you can think of them as clear 
+templates or 'blueprints' for our data. Our FastAPI web framework uses these 
+Pydantic blueprints to automatically:
+1.  Check incoming data: It makes sure any data sent to our API is correct 
+    (e.g., has the right data types like numbers or text, and includes all 
+    the necessary pieces of information).
+2.  Handle data conversion: It smoothly changes our data between Python's way 
+    of thinking and JSON (which is how data is usually sent over the web).
+3.  Create API documentation: It builds helpful 'how-to-use' guides for our API 
+    automatically, so it's clear what data to send and what you'll get back.
+
+Sometimes, just knowing a piece of data is a number or text isn't enough. 
+That's where `Field` (which we get from Pydantic) helps out. `Field` lets us 
+add extra details to our data blueprints. For example, we can use it to write a 
+description of what a data field means, show some examples of what it should look 
+like, or even set specific rules (like 'this number must be between 1 and 100'). 
+This makes our API more reliable and use correctly.
+"""
+
 # --- General Response Models ---
 
 class ShapeResponse(BaseModel):
@@ -73,5 +97,17 @@ class DataFrameSplitResponse(BaseModel):
 class DataFrameRecordsResponse(BaseModel):
     """Structure for DataFrame.to_dict('records') - a list of dictionaries"""
     records: List[Dict[str, Any]]
+
+class CrossTabRequest(BaseModel):
+    index_names: List[str] = Field(..., examples=[["cut"], ["cut", "clarity"]])
+    column_names: List[str] = Field(..., examples=[["color"], ["color", "cut"]])
+    normalize: bool = False
+    margins: bool = False
+
+class FilterConditionRequest(BaseModel):
+    cols: List[str] = Field(..., examples = [["cut"], ["cut", "color"]])
+    values: List[Any] = Field(..., examples=[["Ideal"], ["Ideal", "E"]])
+
+
 
 

@@ -100,9 +100,42 @@ class LiveFeedDataManager(BaseDataManager):
 # --- Global Instance ---
 # For now use the baked in dataset diamonds
 
-default_data_manager: BaseDataManager = DiamondsDatasetManager()
+default_data_manager: BaseDataManager = CSVDataManager(file_path="diamonds.csv")
 
-#if __name__ == "__main__":
+# At the bottom of api_data_manager.py
+
+# default_data_manager is already instantiated above this block as:
+# default_data_manager: BaseDataManager = CSVDataManager(file_path="diamonds.csv")
+
+if __name__ == "__main__":
+    print("Testing DataManager directly...")
+    try:
+        # Step 1: Explicitly load and prepare the data
+        print("Attempting to load and prepare data...")
+        default_data_manager.load_and_prepare_data()
+        print("Data load and preparation process completed by DataManager.")
+
+        # Step 2: Now get the processed DataFrame
+        print("Attempting to get processed DataFrame...")
+        df = default_data_manager.get_processed_df()
+        
+        print("\n--- Processed DataFrame Head: ---")
+        print(df.head())
+        print("\n--- Processed DataFrame Info: ---")
+        df.info() # .info() prints directly, doesn't return a string here unless captured
+        print("\n--- Columns from DataManager: ---")
+        print("All columns:", default_data_manager.get_column_names())
+        print("Categorical columns:", default_data_manager.get_categorical_column_names())
+        print("Numerical columns:", default_data_manager.get_numerical_data_column_names())
+        
+    except FileNotFoundError:
+        print(f"TEST ERROR: The CSV file 'diamonds.csv' was not found. Make sure it's in the correct path.")
+    except RuntimeError as e:
+        print(f"TEST ERROR (RuntimeError from DataManager): {e}")
+    except Exception as e:
+        print(f"TEST ERROR (An unexpected error occurred): {e}")
+        import traceback
+        traceback.print_exc() # Print full traceback for unexpected errors
 
 
     
