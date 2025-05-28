@@ -127,32 +127,127 @@ class Diamonds(Descriptive):
 
 
 
+# In original_descriptive.py
+
+# ... (your Descriptive and Diamonds class definitions above) ...
+
 if __name__=="__main__":
     pd.set_option('display.max_columns', None)
     pd.set_option('display.max_rows', 100)
-    pd.set_option('display.width', 1000) # Adjust for your console width
-    diamonds = Diamonds()
-    print(diamonds.check_unique_counts())
-    print(diamonds.check_rows_and_columns_counts())
-    print(diamonds.categorical_describe())
-    print(diamonds.numerical_describe())
-    print(diamonds.data_info())
-    print(diamonds.data_filter('cut','Ideal'))
-    df = diamonds.price_per_carat()
-    df["high_price"] = np.where(df['price_per_carat']>3500,1,0)
-    print(df)
+    pd.set_option('display.width', 1000)
+    
+    print("--- Initializing Diamonds instance ---")
+    diamonds_instance = Diamonds() # Use a consistent name, e.g., diamonds_instance
+
+    print("\n--- Testing basic descriptive methods ---")
+    print(diamonds_instance.check_unique_counts())
+    print(diamonds_instance.check_rows_and_columns_counts())
+    print("\nCategorical Describe:")
+    print(diamonds_instance.categorical_describe())
+    print("\nNumerical Describe:")
+    print(diamonds_instance.numerical_describe())
+    print("\nData Info:")
+    # data_info() prints to stdout and returns None, so calling it directly is fine for testing.
+    # If you want to capture its string output here like the handler does:
+    # import io
+    # buffer = io.StringIO()
+    # diamonds_instance.data.info(buf=buffer)
+    # print(buffer.getvalue())
+    diamonds_instance.data_info() 
+
+    print("\n--- Testing single condition data_filter ---")
+    print(diamonds_instance.data_filter('cut','Ideal').head()) # Show head to keep output manageable
+
+    print("\n--- Performing feature engineering and saving CSV ---")
+    # Note: price_per_carat modifies diamonds_instance.data in-place
+    df_engineered = diamonds_instance.price_per_carat() 
+    # It's better practice if methods that transform data return a new df
+    # or clearly document in-place modification. For now, this is fine.
+    df_engineered["high_price"] = np.where(df_engineered['price_per_carat'] > 3500, 1, 0)
+    
     def multiply(x):
         y = 1.3 * x
         return y
-    df['price_per_carat_with taxes']= df['price_per_carat'].apply(multiply)
-    #df = diamonds.data_drop(['carat', 'cut', 'color'])
-    print(df.head())
-    df.to_csv("diamonds.csv",index = False)
-    print(diamonds.frequency_table(column_name='cut'))
-    cross_tab_result = diamonds.cross_tabs(index_names=['cut'],columns_names=['clarity','color'])
-    stacked_by_color = cross_tab_result.stack(level='color',future_stack=True)
-    print(stacked_by_color)
+    df_engineered['price_per_carat_with taxes'] = df_engineered['price_per_carat'].apply(multiply)
+    print("\nEngineered DataFrame head:")
+    print(df_engineered.head())
+    # The df_engineered is the same object as diamonds_instance.data now.
+    # df_engineered.to_csv("diamonds.csv", index=False) # Ensure this uses the most up-to-date df
+    diamonds_instance.data.to_csv("diamonds.csv", index=False) # Save the instance's data
+    print("diamonds.csv saved.")
 
-    print(diamonds.data_filter(col=['cut'], value=['Ideal']))
+    print("\n--- Testing frequency_table ---")
+    print(diamonds_instance.frequency_table(column_name='cut'))
+
+    print("\n--- Testing cross_tabs(index=['cut'], columns=['clarity', 'color']) and stack ---")
+    try:
+        cross_tab_result_1 = diamonds_instance.cross_tabs(index_names=['cut'], columns_names=['clarity', 'color'])
+        print("cross_tab_result_1 created. Shape:", cross_tab_result_1.shape)
+        
+        print("\ncross_tab_result_1.columns:")
+        print(cross_tab_result_1.columns)
+        print("cross_tab_result_1.columns.names (Key for stack level names):")
+        print(cross_tab_result_1.columns.names) 
+        print("------------------------------------------------------------\n")
+
+        print("Attempting to stack cross_tab_result_1 by level 'color'...")
+        stacked_by_color = cross_tab_result_1.stack(level='color', future_stack=True)
+        print("Stacked by 'color' successfully. Head of stacked data:")
+        print(stacked_by_color.head())
+
+    except KeyError as e:
+        print(f"CAUGHT KEY ERROR during stack: {e}")
+        print("This likely means 'color' (or the specified level) was not a recognized level name in cross_tab_result_1.columns.names.")
+        print("Check the printed 'cross_tab_result_1.columns.names' above.")
+    except Exception as e:
+        print(f"An unexpected error occurred with crosstab_1 or stack: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc()
+    print("---------------------------------------------------------------------\n")
+
+    print("\n--- Testing polymorphic data_filter with list inputs ---")
+    # This uses the diamonds_instance which has had columns added to its .data attribute
+    print(diamonds_instance.data_filter(col=['cut', 'high_price'], value=['Ideal', 1]).head())
+
+
+    print("\n--- Testing 2-index vs 2-column Cross-Tabulation Directly (that caused API error) ---")
+    test_index_names_2x2 = ['high_price', 'color']
+    test_columns_names_2x2 = ['clarity', 'cut']
     
+    # Test first with margins=False (default)
+    print(f"\nAttempting 2x2 crosstab with index: {test_index_names_2x2}, columns: {test_columns_names_2x2}, margins: False")
+    try:
+        crosstab_result_2x2_no_margins = diamonds_instance.cross_tabs(
+            index_names=test_index_names_2x2,
+            columns_names=test_columns_names_2x2,
+            margins=False 
+        )
+        print("2x2 Crosstab (margins=False) successful. Shape:", crosstab_result_2x2_no_margins.shape)
+        # print("Head of 2x2 Crosstab (margins=False):")
+        # print(crosstab_result_2x2_no_margins.head()) # Optional: print part of the result
+    except Exception as e:
+        print(f"ERROR generating 2x2 crosstab (margins=False): {type(e).__name__} - {e}")
+        import traceback
+        print("Full traceback for 2x2 margins=False error:")
+        traceback.print_exc()
 
+    print("\n---")
+    
+    # Test with margins=True
+    print(f"Attempting 2x2 crosstab with index: {test_index_names_2x2}, columns: {test_columns_names_2x2}, margins: True")
+    try:
+        crosstab_result_2x2_with_margins = diamonds_instance.cross_tabs(
+            index_names=test_index_names_2x2,
+            columns_names=test_columns_names_2x2,
+            margins=True 
+        )
+        print("2x2 Crosstab (margins=True) successful. Shape:", crosstab_result_2x2_with_margins.shape)
+        # print("Head of 2x2 Crosstab (margins=True):")
+        # print(crosstab_result_2x2_with_margins.head()) # Optional: print part of the result
+    except Exception as e:
+        print(f"ERROR generating 2x2 crosstab (margins=True): {type(e).__name__} - {e}")
+        import traceback
+        print("Full traceback for 2x2 margins=True error:")
+        traceback.print_exc()
+    
+    print("\n--- End of All Tests ---")
