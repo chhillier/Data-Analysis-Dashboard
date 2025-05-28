@@ -5,6 +5,7 @@ import pandas as pd # Might be useful later for displaying other data
 # io might be needed if you were handling raw bytes in a more complex way,
 # but st.image can often handle bytes directly.
 # import io 
+from typing import List, Dict, Any, Optional
 
 # --- Configuration ---
 FASTAPI_BASE_URL = "http://localhost:8000/api" # Ensure this matches your FastAPI server
