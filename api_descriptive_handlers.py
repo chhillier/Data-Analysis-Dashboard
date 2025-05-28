@@ -152,6 +152,12 @@ def handle_cross_tabs(
         )
     except Exception as e: # Catch errors from cross_tabs (e.g., if a column isn't suitable)
         raise ValueError(f"Error generating cross-tabulation on shaped data: {e}")
+    
+    # --- Flatten MultiIndex columns if they exist ---
+    if isinstance(cross_tab_df.columns, pd.MultiIndex):
+        # Convert tuple column names to strings, e.g., ('CategoryA', 'SubCat1') -> "CategoryA_SubCat1"
+        # Using a safer join for various types within the tuple.
+        cross_tab_df.columns = ['_'.join(map(str, col_level)).strip('_') for col_level in cross_tab_df.columns.values]
         
     return cross_tab_df.to_dict("split")
 

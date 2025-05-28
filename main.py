@@ -192,7 +192,7 @@ async def post_cross_tabs_endpoint(
         table_dict = desc_api.handle_cross_tabs(
             base_df=base_df,
             index_names=payload.index_names, 
-            columns_names=payload.columns_names,
+            columns_names=payload.column_names,
             normalize=payload.normalize,
             margins=payload.margins,
             include_columns=include_columns,
