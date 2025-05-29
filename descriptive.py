@@ -104,17 +104,62 @@ class Descriptive:
         crosstab_params.update(kwargs) 
         table = pd.crosstab(index=self.data[column_name], **crosstab_params)
         return table
+    # def cross_tabs(self, index_names:list, columns_names:list, normalize = False, margins=False, **kwargs):
+    #     cat_data = self.categorical_data()
+    #     prepared_indexes = [cat_data[name] for name in index_names]
+    #     prepared_columns = [cat_data[name] for name in columns_names]
+    #     cross_tab_table = pd.crosstab(
+    #         index=prepared_indexes,
+    #         columns=prepared_columns,
+    #         normalize=normalize,
+    #         margins=margins
+    #     )
+    #     return cross_tab_table
+    # In original_descriptive.py, inside the Descriptive class
     def cross_tabs(self, index_names:list, columns_names:list, normalize = False, margins=False, **kwargs):
         cat_data = self.categorical_data()
+
+        print(f"\n--- DEBUG: Inside Descriptive.cross_tabs ---")
+        print(f"Received index_names: {index_names}")
+        print(f"Received columns_names: {columns_names}")
+        print(f"Received normalize: {normalize}, margins: {margins}, kwargs: {kwargs}")
+        print(f"Shape of self.data (passed to this instance): {self.data.shape}")
+
+        # Validate names are in cat_data before list comprehension
+        for name in index_names:
+            if name not in cat_data: 
+                err_msg = f"Index name '{name}' not found in categorical data for crosstab. Available in cat_data: {cat_data.columns.tolist()}"
+                print(f"ERROR: {err_msg}")
+                raise ValueError(err_msg)
+        for name in columns_names:
+            if name not in cat_data: 
+                err_msg = f"Column name '{name}' not found in categorical data for crosstab. Available in cat_data: {cat_data.columns.tolist()}"
+                print(f"ERROR: {err_msg}")
+                raise ValueError(err_msg)
+
         prepared_indexes = [cat_data[name] for name in index_names]
         prepared_columns = [cat_data[name] for name in columns_names]
-        cross_tab_table = pd.crosstab(
-            index=prepared_indexes,
-            columns=prepared_columns,
-            normalize=normalize,
-            margins=margins
-        )
-        return cross_tab_table
+
+        try:
+            print("Attempting pd.crosstab...")
+            cross_tab_table = pd.crosstab(
+                index=prepared_indexes,
+                columns=prepared_columns,
+                normalize=normalize,
+                margins=margins,
+                **kwargs 
+            )
+            print("DEBUG Descr.cross_tabs: pd.crosstab successful, shape:", cross_tab_table.shape)
+            return cross_tab_table
+        except Exception as e:
+            print(f"!!!!!!!! ERROR INSIDE Descriptive.cross_tabs during pd.crosstab !!!!!!!!") # Make it stand out
+            print(f"Error Type: {type(e).__name__}")
+            print(f"Error Message: {e}")
+            import traceback
+            print("Full Traceback from Descriptive.cross_tabs:")
+            traceback.print_exc() # This will print the full Python traceback
+            print(f"--------------------------------------------------------------------")
+            raise # Re-raise the error
     
 
 class Diamonds(Descriptive):
