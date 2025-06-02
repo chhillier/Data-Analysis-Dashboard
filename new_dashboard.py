@@ -139,29 +139,30 @@ with tab_plots:
         
         # Initialize plot_params_ui for the selected type
         plot_params_ui = {}
-
-        # Common parameters - try to get sensible defaults if possible
-        default_col_name = st.session_state.get('numerical_cols', [None])[0] if selected_plot_type in ["histogram", "kde", "displot"] else (st.session_state.get('categorical_cols', [None])[0] if selected_plot_type in ["bar_chart", "count_plot"] else None)
-        plot_params_ui['col_name'] = st.selectbox("Primary Column (col_name/x_col):", [None] + st.session_state.get('all_columns',[]), 
-                                                  index=0 if not default_col_name else (st.session_state.get('all_columns',[]).index(default_col_name)+1 if default_col_name in st.session_state.get('all_columns',[]) else 0), 
+        
+        #--- Conditionally display Primary Column ---
+        #Used by most plots except crosstab_heatmap
+        if selected_plot_type is not "crosstab_heatmap":
+            plot_params_ui['col_name'] = st.selectbox("Primary Column (col_name/x_col):", [None] + st.session_state.get('all_columns',[]), 
+                                                  index=0 , 
                                                   key="plot_param_col_name_main_v3")
-        
-        default_hue_col = None
-        if len(st.session_state.get('categorical_cols', [])) > 1:
-            default_hue_col = st.session_state.get('categorical_cols', [])[1] if plot_params_ui['col_name'] == st.session_state.get('categorical_cols', [])[0] else st.session_state.get('categorical_cols', [])[0]
-        
-        plot_params_ui['hue_col'] = st.selectbox("Hue Column (hue_col):", [None] + st.session_state.get('categorical_cols',[]), 
-                                                 index=0 if not default_hue_col else (st.session_state.get('categorical_cols',[]).index(default_hue_col)+1 if default_hue_col in st.session_state.get('categorical_cols',[]) else 0),
-                                                 key="plot_param_hue_col_main_v3")
+        #--- Conditionally display Hue Column ---
+        #Used by kde, scatter, bar chart, count plot, displot. Not used by histogram or crosstab_heatmap
+        if selected_plot_type in ["kde", "scatter", "bar_chart", "count_plot", "displot"]:
+            plot_params_ui['hue_col'] = st.selectbox("Hue Column (hue_col):", [None] + st.session_state.get('categorical_cols',[]), 
+                                                index=0,
+                                                key="plot_param_hue_col_main_v3")    
         
         # Conditional UI for specific plot parameters
         if selected_plot_type == "histogram":
             plot_params_ui['bins'] = st.slider("Bins:", 10, 100, 30, key="hist_bins_main_v3")
             plot_params_ui['kde'] = st.checkbox("Overlay KDE?", value=False, key="hist_kde_main_v3")
-            # Add color, edgecolor, linewidth, stat, element from PlotParameter
             plot_params_ui['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color_main_v3") # Default matplotlib blue
-            plot_params_ui['edgecolor'] = st.text_input("Edge Color (e.g., black or None):", "None", key="hist_edge_main_v3")
-            if plot_params_ui['edgecolor'].lower() == 'none': plot_params_ui['edgecolor'] = None
+            user_edgecolor = st.text_input("Edge Color (e.g., black or None):", "None", key="hist_edge_main_v3")
+            if not user_edgecolor or user_edgecolor.strip().lower() == 'none':
+                plot_params_ui['edgecolor'] = None
+            else:
+                plot_params_ui['edgecolor'] = user_edgecolor
             plot_params_ui['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], index=0, key="hist_stat_main_v3")
 
         elif selected_plot_type == "kde":
@@ -170,24 +171,90 @@ with tab_plots:
             plot_params_ui['linewidth'] = st.slider("Line Width:", 0.5, 5.0, 1.5, step=0.5, key="kde_linewidth_main_v3")
         
         elif selected_plot_type == "scatter":
-            plot_params_ui['col_name_x'] = plot_params_ui.pop('col_name') # Use col_name as x for scatter
-            plot_params_ui['col_name_y'] = st.selectbox("Y-axis Column:", [None] + st.session_state.get('numerical_cols',[]), key="scatter_y_main_v3")
-            plot_params_ui['alpha'] = st.slider("Alpha:", 0.0, 1.0, 0.5, key="scatter_alpha_main_v3")
-            plot_params_ui['s'] = st.slider("Marker Size (s):", 10, 200, 50, key="scatter_s_main_v3")
+            x_axis_column_choice = plot_params_ui.pop('col_name', None)
+            if x_axis_column_choice:
+                plot_params_ui['col_name_x'] = x_axis_column_choice
+            y_axis_column_choice = st.selectbox(
+                "Y-axis Column:",
+                options = [None] + st.session_state.get('numerical_cols', []),
+                index = 0,
+                key = "scatter_y_main_v3",
+            )
+            if y_axis_column_choice:
+                plot_params_ui['col_name_y'] = y_axis_column_choice
+            plot_params_ui["alpha"] = st.slider(
+                "Point Transparency (Alpha, 0=invisible, 1=solid):",
+                min_value=0.0, max_value=1.0,
+                value=0.5,
+                key="scatter_alpha_main_v3"
+            )
+            plot_params_ui['s'] = st.slider(
+                "Point Size (s):",
+                min_value = 10, max_value = 200,
+                value = 50,
+                key="scatter_s_main_v3"
+            )
         
         elif selected_plot_type == "bar_chart":
-            plot_params_ui['x_col'] = plot_params_ui.pop('col_name') 
-            plot_params_ui['y_col'] = st.selectbox("Y-axis Column (numerical):", [None] + st.session_state.get('numerical_cols',[]), key="bar_y_main_v3")
-            plot_params_ui['estimator'] = st.selectbox("Estimator:", ['mean', 'median', 'sum'], index=0, key="bar_estimator_main_v3")
-            errorbar_options = [None, "sd", "ci", "se", "pi"] # Add more or allow tuple input later
-            selected_errorbar = st.selectbox("Errorbar:", errorbar_options, index=1, key="bar_errorbar_main_v3") # Default to 'sd'
-            plot_params_ui['errorbar'] = selected_errorbar
-            plot_params_ui['palette'] = st.text_input("Palette (e.g., viridis):", "viridis", key="bar_palette_main_v3")
+            primary_column_for_x = plot_params_ui.pop('col_name', None)
+            if primary_column_for_x:
+                plot_params_ui['x_col'] = primary_column_for_x
+
+            y_axis_column_choice = st.selectbox(
+                "Y-axis Column (determines bar height, numerical): ",
+                options = [None] + st.session_state.get('numerical_cols', [],
+                                                       ),
+                index = 0,
+                key = "bar_y_main_v3"
+            )
+            if y_axis_column_choice:
+                plot_params_ui['y_col'] = y_axis_column_choice
+
+            estimator_options = [None, 'mean', 'median', 'sum']
+            estimator_choice = st.selectbox(
+                "Estimator (if Y column is chosen, how to aggregate it):",
+                options = estimator_options,
+                index = 0,
+                key = "bar_estimator_main_v3"
+            )
+            if estimator_choice:
+                plot_params_ui['estimator'] = estimator_choice
+
+            errorbar_options = [None, "sd", "ci", "se", "pi"]
+            errorbar_choice = st.selectbox(
+                "Error Bars (show uncertainty on bar height):",
+                options = errorbar_options,
+                index= 0,
+                key = "bar_errorbar_main_v3"
+            )
+            if errorbar_choice:
+                plot_params_ui['errorbar'] = errorbar_choice
+            user_palette_bar = st.text_input(
+                "Color Palette (optional, e.g., 'viridis', 'pastel'):",
+                value = "",
+                key = "bar_palette_main_v3"
+            )
+            if user_palette_bar.strip():
+                plot_params_ui['palette']
 
         elif selected_plot_type == "count_plot":
-            plot_params_ui['x_col'] = plot_params_ui.pop('col_name') 
-            plot_params_ui['dodge'] = st.checkbox("Dodge bars (if hue is used)?", value=True, key="count_dodge_main_v3")
-            plot_params_ui['palette'] = st.text_input("Palette (e.g., pastel):", "pastel", key="count_palette_main_v3")
+            primary_column_for_x = plot_params_ui.pop('col_name', None)
+            if primary_column_for_x:
+                plot_params_ui['x_col'] = primary_column_for_x
+
+            plot_params_ui['dodge'] = st.checkbox(
+                "Separate bars by hue (dodge)?",
+                value= True,
+                key = "count_doge_main_v3"
+            )
+
+            user_palette_count = st.text_input(
+                "Color Palette (optional, e.g., 'pastel', 'Set2'):",
+                value="",
+                key = "count_palette_main_v3"
+            )
+            if user_palette_count.strip():
+                plot_params_ui['palette'] = user_palette_count.strip()
 
         elif selected_plot_type == "crosstab_heatmap":
             plot_params_ui.pop('col_name', None) # Not used directly by heatmap config
@@ -349,10 +416,9 @@ with tab_descriptive_stats:
         if not st.session_state.get('categorical_cols') or len(st.session_state.get('categorical_cols', [])) < 1 :
             st.info("Not enough categorical columns loaded or available for cross-tabulation.")
         else:
-            default_index_ct = [st.session_state.categorical_cols[0]] if st.session_state.categorical_cols else []
-            default_cols_ct = [st.session_state.categorical_cols[1]] if len(st.session_state.categorical_cols) > 1 else default_index_ct
-            index_name_crosstab_select = st.multiselect("Select index column(s) for Crosstab:", st.session_state.categorical_cols, default=default_index_ct, key="crosstab_index_v4")
-            column_name_crosstab_select = st.multiselect("Select column(s) for Crosstab:", st.session_state.categorical_cols, default=default_cols_ct, key="crosstab_columns_v4")
+
+            index_name_crosstab_select = st.multiselect("Select index column(s) for Crosstab:", st.session_state.categorical_cols, default=[], key="crosstab_index_v4")
+            column_name_crosstab_select = st.multiselect("Select column(s) for Crosstab:", st.session_state.categorical_cols, default=[], key="crosstab_columns_v4")
             crosstab_normalize = st.checkbox("Normalize Crosstab?", value=False, key="crosstab_normalize_v4")
             crosstab_margins = st.checkbox("Show Crosstab Margins?", value=False, key="crosstab_margins_v4")
 
