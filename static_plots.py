@@ -25,27 +25,34 @@ class StaticPlots(Descriptive):
         if col_name not in self.data.columns:
             raise ValueError(f"{col_name} not in list of features for data")
 
+        kde_enabled = kwargs.pop('kde', False)
+        statistic_type = kwargs.pop('stat', 'count')
+        kde_custom_line_color = kwargs.pop('kde_line_color', None)
+
         # Create a copy of kwargs to modify, or be selective
-        hist_kwargs = kwargs.copy()
+        remaining_kwargs = kwargs.copy()
 
         # sns.histplot does not accept 'errorbar'. Remove it if present.
         # Also remove other params from PlotParameter that are not for histplot.
         # For simplicity, let's just pop 'errorbar' for now.
         # A more robust way would be to define EXACTLY which kwargs histplot can take from PlotParameter.
-        hist_kwargs.pop('errorbar', None) # Remove 'errorbar' if it exists, do nothing if not
-        hist_kwargs.pop('annot', None)    # <<< ADD THIS LINE
-        hist_kwargs.pop('fmt', None)      # Also for heatmaps
-        hist_kwargs.pop('cmap', None)     # Also for heatmaps
-        hist_kwargs.pop('annot_kws', None) # Also for heatmaps
-        hist_kwargs.pop('index_names_ct', None) # Also for heatmaps
-        hist_kwargs.pop('column_names_ct', None)# Also for heatmaps
+        remaining_kwargs.pop('errorbar', None) # Remove 'errorbar' if it exists, do nothing if not
+        remaining_kwargs.pop('annot', None)    # <<< ADD THIS LINE
+        remaining_kwargs.pop('fmt', None)      # Also for heatmaps
+        remaining_kwargs.pop('cmap', None)     # Also for heatmaps
+        remaining_kwargs.pop('annot_kws', None) # Also for heatmaps
+        remaining_kwargs.pop('index_names_ct', None) # Also for heatmaps
+        remaining_kwargs.pop('column_names_ct', None)# Also for heatmaps
         
-        # You might also want to pop other irrelevant keys that might be in PlotParameter's defaults
-        # For example, if 'estimator' (from bar_chart) was in kwargs, histplot wouldn't use it.
-        # hist_kwargs.pop('estimator', None) 
-        # hist_kwargs.pop('col_name_x', None) # etc.
+        current_kde_kws = {}
+        if kde_enabled and kde_custom_line_color:
+            current_kde_kws['color'] = kde_custom_line_color
 
-        print(f"DEBUG: Calling sns.histplot for {col_name} with kwargs: {hist_kwargs}") # Debug print
+        print(f"DEBUG StaticPlots.histogram: col_name='{col_name}', bar_color='{color}', bins={bins}, "
+          f"kde_enabled={kde_enabled}, statistic_type='{statistic_type}', "
+          f"kde_line_color='{kde_custom_line_color}', "
+          f"final_kde_kws={current_kde_kws if kde_enabled and current_kde_kws else None}, "
+          f"remaining_kwargs_for_histplot={remaining_kwargs}")
 
         sns.histplot(
             data=self.data,
@@ -53,7 +60,7 @@ class StaticPlots(Descriptive):
             ax=ax,
             color=color, 
             bins=bins, 
-            **hist_kwargs # Pass the filtered kwargs
+            **remaining_kwargs # Pass the filtered kwargs
         )
         ax.set_title(f'Histogram of {col_name}')
         return ax

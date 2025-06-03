@@ -157,6 +157,17 @@ with tab_plots:
         if selected_plot_type == "histogram":
             plot_params_ui['bins'] = st.slider("Bins:", 10, 100, 30, key="hist_bins_main_v3")
             plot_params_ui['kde'] = st.checkbox("Overlay KDE?", value=False, key="hist_kde_main_v3")
+
+            if plot_params_ui['kde']:
+                default_kde_color = "#FF5733"
+                current_bar_color = plot_params_ui.get('color', "#1f77b4").lower()
+                if current_bar_color == default_kde_color.lower():
+                    default_kde_color = "#33FF57"
+                plot_params_ui['kde_line_collor'] = st.color_picker(
+                    "KDE Line Color:",
+                    default_kde_color,
+                    key = "hist_kde_line_color_main_v3"
+                )
             plot_params_ui['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color_main_v3") # Default matplotlib blue
             user_edgecolor = st.text_input("Edge Color (e.g., black or None):", "None", key="hist_edge_main_v3")
             if not user_edgecolor or user_edgecolor.strip().lower() == 'none':
@@ -235,7 +246,7 @@ with tab_plots:
                 key = "bar_palette_main_v3"
             )
             if user_palette_bar.strip():
-                plot_params_ui['palette']
+                plot_params_ui['palette'] = user_palette_bar.strip()
 
         elif selected_plot_type == "count_plot":
             primary_column_for_x = plot_params_ui.pop('col_name', None)
@@ -245,7 +256,7 @@ with tab_plots:
             plot_params_ui['dodge'] = st.checkbox(
                 "Separate bars by hue (dodge)?",
                 value= True,
-                key = "count_doge_main_v3"
+                key = "count_dodge_main_v3"
             )
 
             user_palette_count = st.text_input(
@@ -257,17 +268,57 @@ with tab_plots:
                 plot_params_ui['palette'] = user_palette_count.strip()
 
         elif selected_plot_type == "crosstab_heatmap":
-            plot_params_ui.pop('col_name', None) # Not used directly by heatmap config
-            plot_params_ui.pop('hue_col', None)  # Not used directly by heatmap config
-            plot_params_ui['index_names_ct'] = st.multiselect("Index Column(s) for Heatmap:", st.session_state.get('categorical_cols',[]), key="heatmap_idx_main_v3")
-            plot_params_ui['column_names_ct'] = st.multiselect("Column(s) for Heatmap:", st.session_state.get('categorical_cols',[]), key="heatmap_col_main_v3")
-            plot_params_ui['annot'] = st.checkbox("Annotate Heatmap Cells?", value=True, key="heatmap_annot_main_v3")
-            plot_params_ui['fmt'] = st.text_input("Annotation Format (fmt):", ".0f", key="heatmap_fmt_main_v3")
-            plot_params_ui['cmap'] = st.text_input("Colormap (cmap):", "YlGnBu", key="heatmap_cmap_main_v3")
+            index_cols_selection = st.multiselect(
+                "Select Index Column(s) (for heatmap rows):",
+                options = st.session_state.get('categorical_cols', []),
+                default= [],
+                key = "heatmap_idx_main_v3"
+            )
+            if index_cols_selection:
+                plot_params_ui['index_names_ct'] = index_cols_selection
+
+            column_cols_selection = st.multiselect(
+                "Select Column(s) (for heatmap columns):",
+                options = st.session_state.get('categorical_cols', []),
+                default= [],
+                key = "heatmap_col_main_v3"
+
+            )
+            if column_cols_selection:
+                plot_params_ui['column_names_ct'] = column_cols_selection
+
+            plot_params_ui['annot'] = st.checkbox(
+                "Show values on heatmap cells (annotate)?",
+                value = True,
+                key = "heatmap_annot_main_v3"
+            )
+
+            user_annotation_format = st.text_input(
+                "Format for cell values (if annotating, e.g., '.0f' for no decimals, 'd' for integer):",
+                value = ".0f",
+                key = "heatmap_fmt_main_v3"
+            )
+            if user_annotation_format.strip():
+                plot_params_ui['fmt'] = user_annotation_format.strip()
+
+            user_colormap = st.text_input(
+                "Color scheme (cmap, e.g., 'YlGnBu', 'viridis', 'coolwarm'):",
+                value = "YlGnBu",
+                key = "heatmap_cmap_main_v3"
+
+            )
+            if user_colormap.strip():
+                plot_params_ui['cmap'] = user_colormap.strip()
+
         
         elif selected_plot_type == "displot":
-            # col_name and hue_col already handled by common parameters
-            plot_params_ui['kind'] = st.selectbox("Kind of Displot:", ["hist", "kde", "ecdf"], key="displot_param_kind_main_v3")
+            displot_kind_options = ["hist", "kde", "ecdf"]
+            plot_params_ui['kind'] = st.selectbox(
+                "Kind of Distribution Plot:",
+                options = displot_kind_options,
+                index = 0,
+                key = "displot_param_kind_main_v3"
+            )
 
 
         if st.button(f"Generate {selected_plot_type}", key=f"gen_dyn_plot_main_v3"):
@@ -285,10 +336,6 @@ with tab_plots:
             if ready_to_plot:
                 final_plot_params = {k: v for k, v in plot_params_ui.items() if v is not None or k in ['fill','annot','kde','cbar','dodge']} # Keep bools even if False
                 # Ensure correct mapping for x_col if col_name was used
-                if 'x_col' not in final_plot_params and 'col_name' in final_plot_params and selected_plot_type in ['bar_chart', 'count_plot']:
-                    final_plot_params['x_col'] = final_plot_params.pop('col_name')
-                elif selected_plot_type == "scatter" and 'col_name' in final_plot_params and 'col_name_x' not in final_plot_params:
-                     final_plot_params['col_name_x'] = final_plot_params.pop('col_name')
                 
                 dynamic_plot_config = [{"type": selected_plot_type, "params": final_plot_params}]
                 endpoint_url = f"{FASTAPI_BASE_URL}/plots/dashboard"

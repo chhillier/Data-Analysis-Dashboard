@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 
 """
 Explanation of Code:
@@ -50,18 +50,30 @@ class PlotParameter(BaseModel):
 
     # For histogram
     bins: Optional[int] = None
+    kde: Optional[bool] = None
+    stat: Optional[str] = None
+    edgecolor: Optional[str] = None
+    kde_line_color: Optional[str] = None
+
+    # For KDE
+
+    fill: Optional[bool] = None
+    alpha: Optional[float] = None
+    linewidth: Optional[float] = None
+
 
     # For scatter
     col_name_x: Optional[str] = None
     col_name_y: Optional[str] = None
-    alpha: Optional[float] = None
+    s: Optional[int] = None
 
     # For bar_chart
     x_col: Optional[str] = None
     y_col: Optional[str] = None
     estimator: Optional[str] = None
-    errorbar: Optional[tuple[str, int] | str | None] = ('ci', 95) # Matches sns.barplot default
-                                                                  # Using | for Union type hinting
+    errorbar: Optional[Union[str, tuple, None]] = ('ci', 95) # Matches sns.barplot default
+    palette: Optional[str] = None
+
     # For crosstab_heatmap
     index_names_ct: Optional[List[str]] = None
     column_names_ct: Optional[List[str]] = None
@@ -70,7 +82,16 @@ class PlotParameter(BaseModel):
     cmap: Optional[str] = 'viridis'
     annot_kws: Optional[Dict[str, Any]] = None
 
+    #For displot
+    kind: Optional[str] = None
+
+    #For count plot
+    dodge: Optional[bool] = None
+
     #Put more graphs here
+
+    class Config:
+        pass
 
 class PlotConfig(BaseModel):
     """
@@ -78,7 +99,7 @@ class PlotConfig(BaseModel):
     'type' specifies which plotting method to use.
     'params' holds the arguments for that plotting method.
     """
-    type: str = Field(..., examples=["histogram", "kde", "scatter", "crosstab_heatmap", "bar_chart", "count_plot"],
+    type: str = Field(..., examples=["histogram", "kde", "scatter", "crosstab_heatmap", "bar_chart", "count_plot", "displot"],
                       description="The type of plot to generate.")
     params: PlotParameter = Field(..., description="Parameters specific to the chosen plot type.")
 
