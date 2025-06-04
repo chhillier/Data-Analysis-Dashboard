@@ -236,6 +236,16 @@ with tab_plots:
             )
             if y_axis_column_choice:
                 plot_params_ui['col_name_y'] = y_axis_column_choice
+
+            _selected_x_col_for_scatter_warning = plot_params_ui.get('col_name_x')
+            _selected_y_col_for_scatter_warning = plot_params_ui.get('col_name_y')
+
+            if _selected_x_col_for_scatter_warning and _selected_y_col_for_scatter_warning:
+                if _selected_x_col_for_scatter_warning in effective_categorical_cols_for_plot_ui:
+                    st.warning(f" Note: For the scatter plot, you've selected a categorical column ('{_selected_x_col_for_scatter_warning}') for the X-axis "
+                               f" and a numerical column ( '{_selected_y_col_for_scatter_warning}') for the Y-axis. "
+                               "This will generate a strip plot-like visualization, showing the distribution of Y "
+                               "values over X categories")
             plot_params_ui["alpha"] = st.slider(
                 "Point Transparency (Alpha, 0=invisible, 1=solid):",
                 min_value=0.0, max_value=1.0,
@@ -290,13 +300,22 @@ with tab_plots:
             if user_palette_bar.strip():
                 plot_params_ui['palette'] = user_palette_bar.strip()
 
+            # plot_params_ui['alpha'] = st.slider(
+            #     "Bar Transparency (Alpha) :",
+            #     min_value = 0.1,
+            #     max_value = 1.0,
+            #     value = 1.0,
+            #     step = 0.1,
+            #     key = "count_alpha_main_v3"
+            # )
+
         elif selected_plot_type == "count_plot":
             primary_column_for_x = plot_params_ui.pop('col_name', None)
             if primary_column_for_x:
                 plot_params_ui['x_col'] = primary_column_for_x
 
             plot_params_ui['dodge'] = st.checkbox(
-                "Separate bars by hue (dodge)?",
+                "Separate bars by hue",
                 value= True,
                 key = "count_dodge_main_v3"
             )
@@ -308,6 +327,15 @@ with tab_plots:
             )
             if user_palette_count.strip():
                 plot_params_ui['palette'] = user_palette_count.strip()
+
+            plot_params_ui['alpha'] = st.slider(
+                "Bar Transparency (Alpha):",
+                min_value= 0.1,
+                max_value= 1.0,
+                value= 1.0,
+                step = 0.1,
+                key = "count_alpha_main_v3"
+            )
 
         elif selected_plot_type == "crosstab_heatmap":
             index_cols_selection = st.multiselect(

@@ -244,45 +244,79 @@ class StaticPlots(Descriptive):
              ax.text(0.5, 0.5, err_msg, ha='center', va='center', wrap=True, color='red')
              print(f"Error in count_plot: {err_msg}")
              return ax
+        ui_palette = kwargs.pop('palette', None)
+        ui_dodge = kwargs.pop('dodge', True)
+        ui_alpha = kwargs.pop('alpha', 1.0)
+
+        actual_color_for_sns = color
+        if hue_col and color:
+            print(f"Warning: Both 'color' ('{color}') and 'hue_col' ('{hue_col}') provided for count_plot. "
+                  f"The 'palette' (if any, or default) will be used for hue differentiation. Single 'color' arg ignored.")
+            actual_color_for_sns = None
         
-        plot_specific_kwargs = kwargs.copy()
+        remaining_countplot_kwargs = kwargs.copy()
         
         # Parameters from PlotParameter not for sns.countplot (or already handled)
         irrelevant_params = [
             'bins', 'errorbar', 'estimator', 'kind', 'col_name',
             'index_names_ct', 'column_names_ct', 'annot', 'fmt', 'cmap', 'annot_kws',
-            'col_name_x', 'col_name_y', 'alpha', 
+            'col_name_x', 'col_name_y', 
             # 'x_col' is a named param, 'hue_col' is a named param, 'color' is a named param
         ]
         for p_name in irrelevant_params:
-            plot_specific_kwargs.pop(p_name, None)
+            remaining_countplot_kwargs.pop(p_name, None)
 
-        actual_color = color
-        if hue_col and color:
-            print(f"Warning: Both 'color' and 'hue_col' provided for count_plot. Hue will likely determine colors via palette.")
-            actual_color = None # Let hue and palette control
-
-        print(f"DEBUG: Calling sns.countplot for {x_col} with hue_col '{hue_col}', color '{actual_color}', kwargs: {plot_specific_kwargs}")
         try:
             sns.countplot(
                 data=self.data,
                 x=x_col,
-                hue=hue_col, # Pass hue_col to sns.countplot's 'hue'
-                color=actual_color, # Pass color
                 ax=ax,
-                **plot_specific_kwargs # Pass filtered additional kwargs
+                hue=hue_col,
+                color=actual_color_for_sns, # Use this to allow palette to work with hue
+                palette= ui_palette,
+                dodge=ui_dodge,
+                alpha=ui_alpha,             # Pass alpha here
+                **remaining_countplot_kwargs
             )
             plot_title = f"Count Plot for {x_col}"
             if hue_col:
                 plot_title += f" by {hue_col}"
             ax.set_title(plot_title)
-            ax.tick_params(axis='x', rotation=45)
+            ax.tick_params(axis='x', rotation = 45)
+
         except Exception as e:
-            err_msg = f"Could not create count plot for {x_col}: {e}"
-            ax.set_title(err_msg, color='red')
-            ax.text(0.5, 0.5, err_msg, ha='center', va='center', wrap=True, color='red')
+            err_msg = f"Could not create count plot for {x_col} : {e}"
+            ax.set_title(err_msg, color = 'red')
+            ax.text(0.5,0.5, err_msg, ha= 'center', va= 'center', wrap = True, color = 'red')
             print(f"Error in count_plot: {err_msg}")
         return ax
+
+        # actual_color = color
+        # if hue_col and color:
+        #     print(f"Warning: Both 'color' and 'hue_col' provided for count_plot. Hue will likely determine colors via palette.")
+        #     actual_color = None # Let hue and palette control
+
+        # print(f"DEBUG: Calling sns.countplot for {x_col} with hue_col '{hue_col}', color '{actual_color}', kwargs: {plot_specific_kwargs}")
+        # try:
+        #     sns.countplot(
+        #         data=self.data,
+        #         x=x_col,
+        #         hue=hue_col, # Pass hue_col to sns.countplot's 'hue'
+        #         color=actual_color, # Pass color
+        #         ax=ax,
+        #         **plot_specific_kwargs # Pass filtered additional kwargs
+        #     )
+        #     plot_title = f"Count Plot for {x_col}"
+        #     if hue_col:
+        #         plot_title += f" by {hue_col}"
+        #     ax.set_title(plot_title)
+        #     ax.tick_params(axis='x', rotation=45)
+        # except Exception as e:
+        #     err_msg = f"Could not create count plot for {x_col}: {e}"
+        #     ax.set_title(err_msg, color='red')
+        #     ax.text(0.5, 0.5, err_msg, ha='center', va='center', wrap=True, color='red')
+        #     print(f"Error in count_plot: {err_msg}")
+        # return ax
 
     def bar_chart(self, 
                   ax: plt.Axes, 
