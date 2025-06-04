@@ -52,7 +52,7 @@ class PlotParameter(BaseModel):
     bins: Optional[int] = None
     kde: Optional[bool] = None
     stat: Optional[str] = None
-    edgecolor: Optional[str] = None
+    # edgecolor: Optional[str] = None
     kde_line_color: Optional[str] = None
 
     # For KDE

@@ -131,6 +131,31 @@ with tab_plots:
         st.subheader("Column Selection for Plot (applies to generated plot below)")
         plot_tab_include_cols = st.multiselect("Include columns:", st.session_state.get('all_columns', []), default=None, key="plot_tab_include_main_v3")
         plot_tab_exclude_cols = st.multiselect("Exclude columns:", st.session_state.get('all_columns', []), default=None, key="plot_tab_exclude_main_v3")
+        _all_cols_original = st.session_state.get('all_columns', [])
+        _categorical_cols_original = st.session_state.get('categorical_cols', [])
+        _numerical_cols_original = st.session_state.get('numerical_cols', [])
+
+        effective_cols_for_plot_ui = list(_all_cols_original)
+
+        if plot_tab_include_cols:
+            effective_cols_for_plot_ui = [
+                col for col in _all_cols_original if col in plot_tab_include_cols
+            ]
+        elif plot_tab_exclude_cols:
+            effective_cols_for_plot_ui = [
+                col for col in _all_cols_original if col not in plot_tab_exclude_cols
+            ]
+        effective_categorical_cols_for_plot_ui = [
+            col for col in _categorical_cols_original if col in effective_cols_for_plot_ui
+        ]
+
+        effective_numerical_cols_for_plot_ui = [
+            col for col in _numerical_cols_original if col in effective_cols_for_plot_ui
+        ]
+
+
+
+
         st.markdown("---")
         st.subheader("Configure and Generate Single Plot")
         
@@ -142,14 +167,14 @@ with tab_plots:
         
         #--- Conditionally display Primary Column ---
         #Used by most plots except crosstab_heatmap
-        if selected_plot_type is not "crosstab_heatmap":
-            plot_params_ui['col_name'] = st.selectbox("Primary Column (col_name/x_col):", [None] + st.session_state.get('all_columns',[]), 
+        if selected_plot_type != "crosstab_heatmap":
+            plot_params_ui['col_name'] = st.selectbox("Primary Column (col_name/x_col):", [None] + effective_cols_for_plot_ui, 
                                                   index=0 , 
                                                   key="plot_param_col_name_main_v3")
         #--- Conditionally display Hue Column ---
         #Used by kde, scatter, bar chart, count plot, displot. Not used by histogram or crosstab_heatmap
         if selected_plot_type in ["kde", "scatter", "bar_chart", "count_plot", "displot"]:
-            plot_params_ui['hue_col'] = st.selectbox("Hue Column (hue_col):", [None] + st.session_state.get('categorical_cols',[]), 
+            plot_params_ui['hue_col'] = st.selectbox("Hue Column (hue_col):", [None] + effective_categorical_cols_for_plot_ui, 
                                                 index=0,
                                                 key="plot_param_hue_col_main_v3")    
         
@@ -163,17 +188,17 @@ with tab_plots:
                 current_bar_color = plot_params_ui.get('color', "#1f77b4").lower()
                 if current_bar_color == default_kde_color.lower():
                     default_kde_color = "#33FF57"
-                plot_params_ui['kde_line_collor'] = st.color_picker(
+                plot_params_ui['kde_line_color'] = st.color_picker(
                     "KDE Line Color:",
                     default_kde_color,
                     key = "hist_kde_line_color_main_v3"
                 )
             plot_params_ui['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color_main_v3") # Default matplotlib blue
-            user_edgecolor = st.text_input("Edge Color (e.g., black or None):", "None", key="hist_edge_main_v3")
-            if not user_edgecolor or user_edgecolor.strip().lower() == 'none':
-                plot_params_ui['edgecolor'] = None
-            else:
-                plot_params_ui['edgecolor'] = user_edgecolor
+            # user_edgecolor = st.text_input("Edge Color (e.g., black or None):", "None", key="hist_edge_main_v3")
+            # if not user_edgecolor or user_edgecolor.strip().lower() == 'none':
+            #     plot_params_ui['edgecolor'] = None
+            # else:
+            #     plot_params_ui['edgecolor'] = user_edgecolor
             plot_params_ui['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], index=0, key="hist_stat_main_v3")
 
         elif selected_plot_type == "kde":
@@ -187,7 +212,7 @@ with tab_plots:
                 plot_params_ui['col_name_x'] = x_axis_column_choice
             y_axis_column_choice = st.selectbox(
                 "Y-axis Column:",
-                options = [None] + st.session_state.get('numerical_cols', []),
+                options = [None] + effective_numerical_cols_for_plot_ui,
                 index = 0,
                 key = "scatter_y_main_v3",
             )
@@ -213,8 +238,7 @@ with tab_plots:
 
             y_axis_column_choice = st.selectbox(
                 "Y-axis Column (determines bar height, numerical): ",
-                options = [None] + st.session_state.get('numerical_cols', [],
-                                                       ),
+                options = [None] + effective_numerical_cols_for_plot_ui,
                 index = 0,
                 key = "bar_y_main_v3"
             )
@@ -270,7 +294,7 @@ with tab_plots:
         elif selected_plot_type == "crosstab_heatmap":
             index_cols_selection = st.multiselect(
                 "Select Index Column(s) (for heatmap rows):",
-                options = st.session_state.get('categorical_cols', []),
+                options = effective_categorical_cols_for_plot_ui,
                 default= [],
                 key = "heatmap_idx_main_v3"
             )
@@ -279,7 +303,7 @@ with tab_plots:
 
             column_cols_selection = st.multiselect(
                 "Select Column(s) (for heatmap columns):",
-                options = st.session_state.get('categorical_cols', []),
+                options = effective_categorical_cols_for_plot_ui,
                 default= [],
                 key = "heatmap_col_main_v3"
 
@@ -335,7 +359,9 @@ with tab_plots:
             
             if ready_to_plot:
                 final_plot_params = {k: v for k, v in plot_params_ui.items() if v is not None or k in ['fill','annot','kde','cbar','dodge']} # Keep bools even if False
-                # Ensure correct mapping for x_col if col_name was used
+ 
+                #st.write("DEBUG UI: plot_params_ui collected:", plot_params_ui) 
+ 
                 
                 dynamic_plot_config = [{"type": selected_plot_type, "params": final_plot_params}]
                 endpoint_url = f"{FASTAPI_BASE_URL}/plots/dashboard"

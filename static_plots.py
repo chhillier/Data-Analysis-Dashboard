@@ -12,58 +12,175 @@ class StaticPlots(Descriptive):
         if isinstance(est, str): return est
         if hasattr(est, '__name__'): return est.__name__
         return str(est)
-    # def histogram(self,col_name:str,ax:int, color:str = 'blue', bins:int = 20, **kwargs) -> int:
 
+
+    # def histogram(self, col_name:str, ax: plt.Axes, color:str = 'blue', bins:int = 20, **kwargs) -> plt.Axes: # Ensure plt is imported
     #     if col_name not in self.data.columns:
     #         raise ValueError(f"{col_name} not in list of features for data")
-    #     sns.histplot(data=self.data,x=col_name,ax=ax,color=color, bins=bins, **kwargs)
+
+    #     kde_enabled = kwargs.pop('kde', False)
+    #     statistic_type = kwargs.pop('stat', 'count')
+    #     kde_custom_line_color = kwargs.pop('kde_line_color', None)
+    #     edge_color_from_kwargs = kwargs.pop('edgecolor', None)
+
+    #     # Create a copy of kwargs to modify, or be selective
+    #     remaining_kwargs = kwargs.copy()
+
+    #     # sns.histplot does not accept 'errorbar'. Remove it if present.
+    #     # Also remove other params from PlotParameter that are not for histplot.
+    #     # For simplicity, let's just pop 'errorbar' for now.
+    #     # A more robust way would be to define EXACTLY which kwargs histplot can take from PlotParameter.
+    #     remaining_kwargs.pop('errorbar', None) # Remove 'errorbar' if it exists, do nothing if not
+    #     remaining_kwargs.pop('annot', None)    # <<< ADD THIS LINE
+    #     remaining_kwargs.pop('fmt', None)      # Also for heatmaps
+    #     remaining_kwargs.pop('cmap', None)     # Also for heatmaps
+    #     remaining_kwargs.pop('annot_kws', None) # Also for heatmaps
+    #     remaining_kwargs.pop('index_names_ct', None) # Also for heatmaps
+    #     remaining_kwargs.pop('column_names_ct', None)# Also for heatmaps
+        
+    #     current_line_kws = {}
+    #     if kde_enabled and kde_custom_line_color:
+    #         current_line_kws['color'] = kde_custom_line_color
+    #     current_line_kws['linewidth'] = 2
+    #     current_line_kws['alpha'] = 1
+
+    #     print(f"DEBUG StaticPlots.histogram: col_name='{col_name}', bar_color='{color}', bins={bins}, "
+    #       f"kde_enabled={kde_enabled}, statistic_type='{statistic_type}', "
+    #       f"kde_line_color='{kde_custom_line_color}', "
+    #       f"final_kde_kws={current_line_kws if kde_enabled and current_line_kws else None}, "
+    #       f"remaining_kwargs_for_histplot={remaining_kwargs}")
+
+    #     sns.histplot(
+    #         data=self.data,
+    #         x=col_name,
+    #         ax=ax,
+    #         color=color, 
+    #         bins=bins,
+    #         kde = False,
+    #         line_kws=current_line_kws if kde_enabled and current_line_kws else None, 
+    #         **remaining_kwargs # Pass the filtered kwargs
+    #     )
+    #     if kde_enabled:
+    #     # Determine the KDE line color
+    #         final_kde_color = kde_custom_line_color  # Use the color from UI if provided
+    #         if not final_kde_color: # If no custom color from UI, pick a default distinct from bar color
+    #             if color.lower() == '#ff5733': # Example: if bar color is orange
+    #                 final_kde_color = '#1f77b4' # Make KDE blue
+    #             else:
+    #                 final_kde_color = '#FF5733' # Default KDE to orange
+    #     if statistic_type in ['count', 'frequency']:
+    #         ax2 = ax.twinx()  # Create a second y-axis for KDE
+    #         sns.kdeplot(
+    #             data=self.data,
+    #             x=col_name,
+    #             ax=ax2, # Plot on the twin axis
+    #             color=final_kde_color,
+    #             linewidth=2, # Or get from UI if you add this to schema/UI
+    #             alpha=1      # Or get from UI
+    #         )
+    #         ax2.set_yticks([]) # Optionally hide the secondary y-axis ticks
+    #         ax2.set_ylabel('') # Optionally hide the secondary y-axis label
+    #     else: # For 'density', 'probability', KDE can share the same y-axis
+    #         sns.kdeplot(
+    #             data=self.data,
+    #             x=col_name,
+    #             ax=ax, # Plot on the same axis
+    #             color=final_kde_color,
+    #             linewidth=2,
+    #             alpha=1
+    #         )
+      
     #     ax.set_title(f'Histogram of {col_name}')
     #     return ax
-    # In static_plots.py, within the StaticPlots class:
 
-    def histogram(self, col_name:str, ax: plt.Axes, color:str = 'blue', bins:int = 20, **kwargs) -> plt.Axes: # Ensure plt is imported
+    # In static_plots.py
+
+    def histogram(self, col_name: str, ax: plt.Axes, color: str = 'blue', bins: int = 20, **kwargs) -> plt.Axes:
         if col_name not in self.data.columns:
             raise ValueError(f"{col_name} not in list of features for data")
 
+        # Extract parameters that came from the UI via kwargs
         kde_enabled = kwargs.pop('kde', False)
-        statistic_type = kwargs.pop('stat', 'count')
+        statistic_type = kwargs.pop('stat', 'count') # Use the stat from UI, or default
         kde_custom_line_color = kwargs.pop('kde_line_color', None)
+        # edge_color_from_kwargs = kwargs.pop('edgecolor', None) # For histplot bars
 
-        # Create a copy of kwargs to modify, or be selective
-        remaining_kwargs = kwargs.copy()
+        # remaining_kwargs now holds any other parameters (like your defensive pops will remove from this)
+        remaining_hist_kwargs = kwargs.copy()
 
-        # sns.histplot does not accept 'errorbar'. Remove it if present.
-        # Also remove other params from PlotParameter that are not for histplot.
-        # For simplicity, let's just pop 'errorbar' for now.
-        # A more robust way would be to define EXACTLY which kwargs histplot can take from PlotParameter.
-        remaining_kwargs.pop('errorbar', None) # Remove 'errorbar' if it exists, do nothing if not
-        remaining_kwargs.pop('annot', None)    # <<< ADD THIS LINE
-        remaining_kwargs.pop('fmt', None)      # Also for heatmaps
-        remaining_kwargs.pop('cmap', None)     # Also for heatmaps
-        remaining_kwargs.pop('annot_kws', None) # Also for heatmaps
-        remaining_kwargs.pop('index_names_ct', None) # Also for heatmaps
-        remaining_kwargs.pop('column_names_ct', None)# Also for heatmaps
-        
-        current_kde_kws = {}
-        if kde_enabled and kde_custom_line_color:
-            current_kde_kws['color'] = kde_custom_line_color
+        # Your defensive popping for parameters not relevant to histplot
+        remaining_hist_kwargs.pop('errorbar', None)
+        remaining_hist_kwargs.pop('annot', None)
+        remaining_hist_kwargs.pop('fmt', None)
+        remaining_hist_kwargs.pop('cmap', None)
+        remaining_hist_kwargs.pop('annot_kws', None)
+        remaining_hist_kwargs.pop('index_names_ct', None)
+        remaining_hist_kwargs.pop('column_names_ct', None)
+        # Consider popping other plot-specific params if they could be in kwargs:
+        # e.g. 'x_col', 'y_col', 'col_name_x', 'col_name_y', 'estimator', 's', 
+        # 'fill', 'linewidth_kde_specific', 'dodge', 'kind' (if you named kde linewidth differently)
 
-        print(f"DEBUG StaticPlots.histogram: col_name='{col_name}', bar_color='{color}', bins={bins}, "
-          f"kde_enabled={kde_enabled}, statistic_type='{statistic_type}', "
-          f"kde_line_color='{kde_custom_line_color}', "
-          f"final_kde_kws={current_kde_kws if kde_enabled and current_kde_kws else None}, "
-          f"remaining_kwargs_for_histplot={remaining_kwargs}")
-
+        # --- Plot 1: The Histogram Bars ---
         sns.histplot(
             data=self.data,
             x=col_name,
             ax=ax,
-            color=color, 
-            bins=bins, 
-            **remaining_kwargs # Pass the filtered kwargs
+            color=color,  # Bar color from UI (passed as named arg)
+            bins=bins,    # Bins from UI (passed as named arg)
+            kde=False,    # IMPORTANT: We will draw KDE separately if enabled
+            stat=statistic_type, # Use the statistic type from UI
+            edgecolor='black', # Use edgecolor from UI if provided
+            **remaining_hist_kwargs
         )
+
+        # --- Plot 2: The KDE Line (if enabled) ---
+        if kde_enabled:
+            # Determine the KDE line color
+            # Use the custom color if provided, otherwise pick a default distinct from bar color
+            if kde_custom_line_color:
+                final_kde_color_for_plot = kde_custom_line_color
+            else: # Default KDE line color logic if not specified by user
+                if color.lower() == '#ff5733':  # If bar color is default orange
+                    final_kde_color_for_plot = '#1f77b4'  # Make KDE blue
+                else:
+                    final_kde_color_for_plot = '#FF5733'  # Default KDE to orange
+
+            # Get other KDE styling parameters (these are hardcoded for now, but could come from UI/kwargs)
+            kde_linewidth = kwargs.pop('kde_linewidth', 2) # Example if you add this to schema later
+            kde_alpha = kwargs.pop('kde_alpha', 1)       # Example if you add this to schema later
+
+            # Debug print specifically for when KDE is plotted
+            print(f"DEBUG StaticPlots.histogram (Separate KDE): Plotting KDE for {col_name} with color='{final_kde_color_for_plot}', linewidth={kde_linewidth}, alpha={kde_alpha}")
+
+            # Handle y-axis scaling for KDE based on histogram's statistic
+            if statistic_type in ['count', 'frequency']:
+                # For count/frequency histograms, KDE (density) needs its own scale.
+                # Plot on a twin axis.
+                ax2 = ax.twinx()
+                sns.kdeplot(
+                    data=self.data,
+                    x=col_name,
+                    ax=ax2,
+                    color=final_kde_color_for_plot,
+                    linewidth=kde_linewidth,
+                    alpha=kde_alpha
+                )
+                ax2.set_yticks([])  # Hide secondary y-axis ticks
+                ax2.set_ylabel('')  # Hide secondary y-axis label
+            else: # For 'density' or 'probability', KDE can share the primary y-axis
+                sns.kdeplot(
+                    data=self.data,
+                    x=col_name,
+                    ax=ax,
+                    color=final_kde_color_for_plot,
+                    linewidth=kde_linewidth,
+                    alpha=kde_alpha
+                )
+                
         ax.set_title(f'Histogram of {col_name}')
         return ax
+
+
     def kde(self, col_name:str, ax:int, hue_col:str=None, **kwargs):
         
         if col_name not in self.data.columns:
