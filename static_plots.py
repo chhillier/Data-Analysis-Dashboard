@@ -13,88 +13,6 @@ class StaticPlots(Descriptive):
         if hasattr(est, '__name__'): return est.__name__
         return str(est)
 
-
-    # def histogram(self, col_name:str, ax: plt.Axes, color:str = 'blue', bins:int = 20, **kwargs) -> plt.Axes: # Ensure plt is imported
-    #     if col_name not in self.data.columns:
-    #         raise ValueError(f"{col_name} not in list of features for data")
-
-    #     kde_enabled = kwargs.pop('kde', False)
-    #     statistic_type = kwargs.pop('stat', 'count')
-    #     kde_custom_line_color = kwargs.pop('kde_line_color', None)
-    #     edge_color_from_kwargs = kwargs.pop('edgecolor', None)
-
-    #     # Create a copy of kwargs to modify, or be selective
-    #     remaining_kwargs = kwargs.copy()
-
-    #     # sns.histplot does not accept 'errorbar'. Remove it if present.
-    #     # Also remove other params from PlotParameter that are not for histplot.
-    #     # For simplicity, let's just pop 'errorbar' for now.
-    #     # A more robust way would be to define EXACTLY which kwargs histplot can take from PlotParameter.
-    #     remaining_kwargs.pop('errorbar', None) # Remove 'errorbar' if it exists, do nothing if not
-    #     remaining_kwargs.pop('annot', None)    # <<< ADD THIS LINE
-    #     remaining_kwargs.pop('fmt', None)      # Also for heatmaps
-    #     remaining_kwargs.pop('cmap', None)     # Also for heatmaps
-    #     remaining_kwargs.pop('annot_kws', None) # Also for heatmaps
-    #     remaining_kwargs.pop('index_names_ct', None) # Also for heatmaps
-    #     remaining_kwargs.pop('column_names_ct', None)# Also for heatmaps
-        
-    #     current_line_kws = {}
-    #     if kde_enabled and kde_custom_line_color:
-    #         current_line_kws['color'] = kde_custom_line_color
-    #     current_line_kws['linewidth'] = 2
-    #     current_line_kws['alpha'] = 1
-
-    #     print(f"DEBUG StaticPlots.histogram: col_name='{col_name}', bar_color='{color}', bins={bins}, "
-    #       f"kde_enabled={kde_enabled}, statistic_type='{statistic_type}', "
-    #       f"kde_line_color='{kde_custom_line_color}', "
-    #       f"final_kde_kws={current_line_kws if kde_enabled and current_line_kws else None}, "
-    #       f"remaining_kwargs_for_histplot={remaining_kwargs}")
-
-    #     sns.histplot(
-    #         data=self.data,
-    #         x=col_name,
-    #         ax=ax,
-    #         color=color, 
-    #         bins=bins,
-    #         kde = False,
-    #         line_kws=current_line_kws if kde_enabled and current_line_kws else None, 
-    #         **remaining_kwargs # Pass the filtered kwargs
-    #     )
-    #     if kde_enabled:
-    #     # Determine the KDE line color
-    #         final_kde_color = kde_custom_line_color  # Use the color from UI if provided
-    #         if not final_kde_color: # If no custom color from UI, pick a default distinct from bar color
-    #             if color.lower() == '#ff5733': # Example: if bar color is orange
-    #                 final_kde_color = '#1f77b4' # Make KDE blue
-    #             else:
-    #                 final_kde_color = '#FF5733' # Default KDE to orange
-    #     if statistic_type in ['count', 'frequency']:
-    #         ax2 = ax.twinx()  # Create a second y-axis for KDE
-    #         sns.kdeplot(
-    #             data=self.data,
-    #             x=col_name,
-    #             ax=ax2, # Plot on the twin axis
-    #             color=final_kde_color,
-    #             linewidth=2, # Or get from UI if you add this to schema/UI
-    #             alpha=1      # Or get from UI
-    #         )
-    #         ax2.set_yticks([]) # Optionally hide the secondary y-axis ticks
-    #         ax2.set_ylabel('') # Optionally hide the secondary y-axis label
-    #     else: # For 'density', 'probability', KDE can share the same y-axis
-    #         sns.kdeplot(
-    #             data=self.data,
-    #             x=col_name,
-    #             ax=ax, # Plot on the same axis
-    #             color=final_kde_color,
-    #             linewidth=2,
-    #             alpha=1
-    #         )
-      
-    #     ax.set_title(f'Histogram of {col_name}')
-    #     return ax
-
-    # In static_plots.py
-
     def histogram(self, col_name: str, ax: plt.Axes, color: str = 'blue', bins: int = 20, **kwargs) -> plt.Axes:
         if col_name not in self.data.columns:
             raise ValueError(f"{col_name} not in list of features for data")
@@ -116,9 +34,7 @@ class StaticPlots(Descriptive):
         remaining_hist_kwargs.pop('annot_kws', None)
         remaining_hist_kwargs.pop('index_names_ct', None)
         remaining_hist_kwargs.pop('column_names_ct', None)
-        # Consider popping other plot-specific params if they could be in kwargs:
-        # e.g. 'x_col', 'y_col', 'col_name_x', 'col_name_y', 'estimator', 's', 
-        # 'fill', 'linewidth_kde_specific', 'dodge', 'kind' (if you named kde linewidth differently)
+
 
         # --- Plot 1: The Histogram Bars ---
         sns.histplot(
@@ -185,8 +101,12 @@ class StaticPlots(Descriptive):
         
         if col_name not in self.data.columns:
             raise ValueError(f"{col_name} not in list of features for data")
-        kde_plot_kwargs = kwargs.copy()
-        irrelevant_params_for_kde = [
+        ui_fill = kwargs.pop('fill', True)
+        ui_alpha = kwargs.pop('alpha', 0.7)
+        ui_linewidth = kwargs.pop('linewidth', 1.5)
+
+        remaining_kde_kwargs = kwargs.copy()
+        irrelevant_params = [
             'bins',             # Specific to histogram
             'errorbar',         # Specific to barplot
             'estimator',        # Specific to barplot
@@ -199,24 +119,21 @@ class StaticPlots(Descriptive):
             'cmap',             # kdeplot has 'palette' or 'color', cmap is more for heatmaps/imshow
             'annot_kws'         # Specific to heatmap
         ]
-        for param in irrelevant_params_for_kde:
-            kde_plot_kwargs.pop(param, None)
-        sns.kdeplot(data = self.data, x= col_name,ax=ax,hue=hue_col, fill=True, **kde_plot_kwargs)
+        for param in irrelevant_params:
+            remaining_kde_kwargs.pop(param, None)
+            print(f"DEBUG StaticPlots.kde: col_name='{col_name}', hue_col='{hue_col}', "
+          f"fill={ui_fill}, alpha={ui_alpha}, linewidth={ui_linewidth}, "
+          f"other_kwargs_for_kdeplot={remaining_kde_kwargs}")
+        sns.kdeplot(data = self.data,
+                     x= col_name,
+                     ax=ax,
+                     hue=hue_col,
+                    fill=ui_fill,
+                    alpha = ui_alpha,
+                    linewidth = ui_linewidth,
+                    **remaining_kde_kwargs)
         ax.set_title(f"KDE plot of {col_name}")
-
-    # def scatter(self,col_name_x:str, col_name_y:str, ax:int, color:str = 'green', **kwargs):
-    #     if col_name_x not in self.data.columns:
-    #         raise ValueError(f"{col_name_x} not in list of features for data")
-    #     elif col_name_y not in self.data.columns:
-    #         raise ValueError(f"{col_name_y} not in list of features for data")
-    #     sns.scatterplot(data=self.data, x= col_name_x, y= col_name_y, ax=ax, **kwargs)
-    #     ax.set_title(f"Scatterplot of {col_name_x} and {col_name_y}")
-
-    # In static_plots.py, within the StaticPlots class
-# Ensure these imports are at the top of your static_plots.py file:
-# import matplotlib.pyplot as plt
-# from typing import Optional 
-# (pandas, seaborn, math, Descriptive, Union, Callable, List, Dict, Any should already be there)
+        return ax
 
     def scatter(self, 
                 col_name_x: str, 
@@ -308,28 +225,6 @@ class StaticPlots(Descriptive):
         g.figure.suptitle(title, y=1.03)
         return g.figure
             
-    # def count_plot(self, ax, x_col:str, **kwargs) -> int:
-    #     if x_col not in self.categorical_data().columns:
-    #         err_msg = f"Error: {x_col} not found"
-    #         ax.set_title(err_msg)
-    #         ax.text(0.5,0.5, err_msg, ha='center', va='center', wrap = True)
-    #         print(f"Error in count chart : {err_msg}")
-    #         return ax
-    #     try:
-    #         sns.countplot(data=self.data,
-    #                       x = x_col,
-    #                       ax=ax,
-    #                       )
-    #         plot_title = f"Count Plot for {x_col}"
-    #         ax.set_title(plot_title)
-    #         ax.tick_params(axis = 'x',rotation = 45)
-
-    #     except Exception as e:
-    #         err_msg = f"Could not create count plot for {x_col}"
-    #         ax.title(err_msg)
-    #         ax.set_text(0.5,0.5, err_msg, ha='center', va='center, wrap=True')
-    # In static_plots.py, within StaticPlots class
-# Ensure: import matplotlib.pyplot as plt; from typing import Optional
     def count_plot(self, 
                    ax: plt.Axes, 
                    x_col: str, 
@@ -388,62 +283,6 @@ class StaticPlots(Descriptive):
             ax.text(0.5, 0.5, err_msg, ha='center', va='center', wrap=True, color='red')
             print(f"Error in count_plot: {err_msg}")
         return ax
-
-        
- 
-    # def bar_chart(self,ax, x_col:str, y_col:Optional[str]=None,
-    #             hue: Optional[str] = None,
-    #             estimator:Union[str,Callable,None] = 'mean',
-    #             errorbar = ('ci',95),
-    #             **kwargs,
-    #             ):
-    #     if x_col not in self.categorical_data().columns:
-    #         err_msg = f"Error: {x_col} not found"
-    #         ax.set_title(err_msg)
-    #         ax.text(0.5,0.5, err_msg, ha='center', va='center', wrap = True)
-    #         print(f"Error in bar_chart: {err_msg}")
-    #         return ax
-    #     if y_col is not None:
-    #         if y_col not in self.data.columns:
-    #             err_msg = f"Error: {y_col} not found"
-    #             ax.set_title(err_msg)
-    #             ax.text(0.5,0.5,err_msg, ha='center', va='center', wrap=True)
-    #             return ax
-    #     if hue is not None:
-    #         if hue not in self.categorical_data().columns:
-    #             err_msg = f"Error: {hue} not found"
-    #             ax.set_title(err_msg)
-    #             ax.text(0.5,0.5,err_msg, ha='center', va='center', wrap=True)
-    #             return ax
-    #     plot_title = f"Bar Chart: {x_col}" # Basic title
-    #     if y_col is not None:
-    #         plot_title += f" vs {y_col}"
-    #     if hue is not None:
-    #         plot_title += f" by {hue}"
-        
-    #     try:
-    #         sns.barplot(data = self.data,
-    #                             x = x_col,
-    #                             y = y_col,
-    #                             hue = hue,
-    #                             estimator = estimator,
-    #                             errorbar=errorbar,
-    #                             ax=ax,
-    #                             **kwargs,
-    #         )
-    #         ax.set_title(plot_title)
-    #         ax.tick_params(axis='x', rotation=45)
-
-    #     except Exception as e:
-    #         err_msg = f"Error generating bar chart for {x_col}"
-    #         ax.set_title(err_msg)
-    #         ax.text(0.5,0.5, f"Error: {e}", ha='center', va='center', wrap=True)
-    #         print(f"{err_msg}: {e}")
-
-    #     return ax
-    
-    # In static_plots.py, within StaticPlots class
-# In your static_plots.py, within the StaticPlots class:
 
     def bar_chart(self, 
                   ax: plt.Axes, 
@@ -541,41 +380,7 @@ class StaticPlots(Descriptive):
             import traceback
             print(traceback.format_exc()) # Print full traceback for server log
         return ax
-    # def crosstab_heatmap(self,ax, index_names_ct:list, column_names_ct:list, normalize_ct: bool = False,
-    #                      margins_ct:bool = False, annot: bool = True, fmt:str = 'd', cmap: str = 'viridis', **kwargs):
-    #     try:
-    #         crosstab_data = self.cross_tabs(
-    #             index_names = index_names_ct,
-    #             columns_names = column_names_ct,
-    #             normalize = normalize_ct,
-    #             margins = margins_ct,
-                
-    #         )
-    #     except Exception as e:
-    #         ax.set_title(f"Error generating crosstabl")
-    #         ax.text(0.5,0.5, f"Error: {e}", ha='center', va='center', wrap=True)
-    #         print(f"Error in crosstab_heatmap while generating data: {e}")
-    #         return
-        
-    #     try:
-    #         sns.heatmap(data=crosstab_data, ax=ax, annot=annot, fmt=fmt, cmap=cmap, **kwargs)
-    #         idx_str = ', '.join(index_names_ct)
-    #         col_str = '. '.join(column_names_ct)
-    #         title = f"Heatmap: {idx_str} vs {col_str}"
-    #         if normalize_ct:
-    #             title += " (Normalized)"
-    #         ax.set_title(title)
-    #         ax.tick_params(axis='x', rotation=45)
-    #         ax.tick_params(axis='y', rotation = 0)
-
-    #     except Exception as e:
-    #         ax.set_title(f"Error plotting heatmap")
-    #         ax.text(0.5,0.5, f"Error: {e}", ha='center', va='center', wrap=True)
-    #         print(f"Error in crosstab_heatmap while plotting : {e}")
-
-    #     return ax
-    
-    # In static_plots.py, within StaticPlots class
+ 
     def crosstab_heatmap(self, ax: plt.Axes, index_names_ct:list, column_names_ct:list, # ax type corrected
                          normalize_ct: bool = False, margins_ct:bool = False, 
                          annot: bool = True, fmt:str = 'd', cmap: str = 'viridis', 

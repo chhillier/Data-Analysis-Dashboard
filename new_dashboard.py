@@ -164,11 +164,19 @@ with tab_plots:
         
         # Initialize plot_params_ui for the selected type
         plot_params_ui = {}
+        _primary_column_options_list_for_ui = []
+
+        if selected_plot_type == "kde":
+            _primary_column_options_list_for_ui = effective_numerical_cols_for_plot_ui
+        elif selected_plot_type == "displot":
+            _primary_column_options_list_for_ui = effective_cols_for_plot_ui
+        elif selected_plot_type != "crosstab_heatmap":
+            _primary_column_options_list_for_ui = effective_cols_for_plot_ui
         
         #--- Conditionally display Primary Column ---
         #Used by most plots except crosstab_heatmap
         if selected_plot_type != "crosstab_heatmap":
-            plot_params_ui['col_name'] = st.selectbox("Primary Column (col_name/x_col):", [None] + effective_cols_for_plot_ui, 
+            plot_params_ui['col_name'] = st.selectbox("Primary Column (col_name/x_col):", [None] + _primary_column_options_list_for_ui, 
                                                   index=0 , 
                                                   key="plot_param_col_name_main_v3")
         #--- Conditionally display Hue Column ---
@@ -180,25 +188,35 @@ with tab_plots:
         
         # Conditional UI for specific plot parameters
         if selected_plot_type == "histogram":
+            primary_col_for_hist = plot_params_ui.get('col_name')
+            is_primary_col_numeric_for_hist = False
+            if primary_col_for_hist and primary_col_for_hist in effective_numerical_cols_for_plot_ui:
+                is_primary_col_numeric_for_hist = True
             plot_params_ui['bins'] = st.slider("Bins:", 10, 100, 30, key="hist_bins_main_v3")
-            plot_params_ui['kde'] = st.checkbox("Overlay KDE?", value=False, key="hist_kde_main_v3")
-
-            if plot_params_ui['kde']:
-                default_kde_color = "#FF5733"
-                current_bar_color = plot_params_ui.get('color', "#1f77b4").lower()
-                if current_bar_color == default_kde_color.lower():
-                    default_kde_color = "#33FF57"
-                plot_params_ui['kde_line_color'] = st.color_picker(
-                    "KDE Line Color:",
-                    default_kde_color,
-                    key = "hist_kde_line_color_main_v3"
+            if is_primary_col_numeric_for_hist:
+                plot_params_ui['kde'] = st.checkbox(
+                    "Overlay KDE? (numerical data only)",
+                    value= False,
+                    key = "hist_kde_main_v3",
                 )
+                if plot_params_ui.get('kde'):
+                    default_kde_color = "#FF5733"
+                    current_bar_color = plot_params_ui.get('color', "#1f77b4").lower()
+                    if current_bar_color == default_kde_color.lower():
+                        default_kde_color = "#33FF57"
+                    plot_params_ui['kde_line_color'] = st.color_picker(
+                        "KDE Line Color:",
+                        default_kde_color,
+                        key= "hist_kde_line_color_main_v3"
+                    )
+            else:
+                if primary_col_for_hist:
+                    st.caption(f"KDE overlay is not applicable for non-numeric column: '{primary_col_for_hist}'.")
+                plot_params_ui['kde'] = False
+                if 'kde_line_color' in plot_params_ui:
+                    del plot_params_ui['kde_line_color']
+
             plot_params_ui['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color_main_v3") # Default matplotlib blue
-            # user_edgecolor = st.text_input("Edge Color (e.g., black or None):", "None", key="hist_edge_main_v3")
-            # if not user_edgecolor or user_edgecolor.strip().lower() == 'none':
-            #     plot_params_ui['edgecolor'] = None
-            # else:
-            #     plot_params_ui['edgecolor'] = user_edgecolor
             plot_params_ui['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], index=0, key="hist_stat_main_v3")
 
         elif selected_plot_type == "kde":
