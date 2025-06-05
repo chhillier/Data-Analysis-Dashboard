@@ -48,53 +48,90 @@ class StaticPlots(Descriptive):
             edgecolor='black', # Use edgecolor from UI if provided
             **remaining_hist_kwargs
         )
+        # In static_plots.py, inside the histogram method
 
-        # --- Plot 2: The KDE Line (if enabled) ---
+    # --- Plot 2: The KDE Line (if enabled) ---
         if kde_enabled:
-            # Determine the KDE line color
-            # Use the custom color if provided, otherwise pick a default distinct from bar color
-            if kde_custom_line_color:
-                final_kde_color_for_plot = kde_custom_line_color
-            else: # Default KDE line color logic if not specified by user
-                if color.lower() == '#ff5733':  # If bar color is default orange
-                    final_kde_color_for_plot = '#1f77b4'  # Make KDE blue
-                else:
-                    final_kde_color_for_plot = '#FF5733'  # Default KDE to orange
+            if pd.api.types.is_numeric_dtype(self.data[col_name]): # Check if column is numeric
+                # Determine the KDE line color
+                if kde_custom_line_color:
+                    final_kde_color_for_plot = kde_custom_line_color
+                else: 
+                    if color.lower() == '#ff5733':
+                        final_kde_color_for_plot = '#1f77b4' 
+                    else:
+                        final_kde_color_for_plot = '#FF5733'
+                
+                kde_plot_linewidth = kwargs.pop('kde_linewidth', 2) 
+                kde_plot_alpha = kwargs.pop('kde_alpha', 1)       
 
-            # Get other KDE styling parameters (these are hardcoded for now, but could come from UI/kwargs)
-            kde_linewidth = kwargs.pop('kde_linewidth', 2) # Example if you add this to schema later
-            kde_alpha = kwargs.pop('kde_alpha', 1)       # Example if you add this to schema later
+                print(f"DEBUG StaticPlots.histogram (Separate KDE): Plotting KDE for {col_name} with color='{final_kde_color_for_plot}', linewidth={kde_plot_linewidth}, alpha={kde_plot_alpha}")
 
-            # Debug print specifically for when KDE is plotted
-            print(f"DEBUG StaticPlots.histogram (Separate KDE): Plotting KDE for {col_name} with color='{final_kde_color_for_plot}', linewidth={kde_linewidth}, alpha={kde_alpha}")
-
-            # Handle y-axis scaling for KDE based on histogram's statistic
-            if statistic_type in ['count', 'frequency']:
-                # For count/frequency histograms, KDE (density) needs its own scale.
-                # Plot on a twin axis.
+                # ### MODIFIED PART: Always use a twin axis for the separate KDE plot ###
+                # This ensures it's always drawn and visible with its own scaling, regardless of histogram stat.
                 ax2 = ax.twinx()
                 sns.kdeplot(
                     data=self.data,
                     x=col_name,
-                    ax=ax2,
+                    ax=ax2, # Plot on the twin axis
                     color=final_kde_color_for_plot,
-                    linewidth=kde_linewidth,
-                    alpha=kde_alpha
+                    linewidth=kde_plot_linewidth,
+                    alpha=kde_plot_alpha
                 )
                 ax2.set_yticks([])  # Hide secondary y-axis ticks
                 ax2.set_ylabel('')  # Hide secondary y-axis label
-            else: # For 'density' or 'probability', KDE can share the primary y-axis
-                sns.kdeplot(
-                    data=self.data,
-                    x=col_name,
-                    ax=ax,
-                    color=final_kde_color_for_plot,
-                    linewidth=kde_linewidth,
-                    alpha=kde_alpha
-                )
+                # ### END MODIFIED PART ###
+            else:
+                print(f"INFO StaticPlots.histogram: KDE overlay skipped for non-numeric column '{col_name}'.")
                 
         ax.set_title(f'Histogram of {col_name}')
-        return ax
+        # return ax
+        # # --- Plot 2: The KDE Line (if enabled) ---
+        # if kde_enabled:
+        #     # Determine the KDE line color
+        #     # Use the custom color if provided, otherwise pick a default distinct from bar color
+        #     if kde_custom_line_color:
+        #         final_kde_color_for_plot = kde_custom_line_color
+        #     else: # Default KDE line color logic if not specified by user
+        #         if color.lower() == '#ff5733':  # If bar color is default orange
+        #             final_kde_color_for_plot = '#1f77b4'  # Make KDE blue
+        #         else:
+        #             final_kde_color_for_plot = '#FF5733'  # Default KDE to orange
+
+        #     # Get other KDE styling parameters (these are hardcoded for now, but could come from UI/kwargs)
+        #     kde_linewidth = kwargs.pop('kde_linewidth', 2) # Example if you add this to schema later
+        #     kde_alpha = kwargs.pop('kde_alpha', 1)       # Example if you add this to schema later
+
+        #     # Debug print specifically for when KDE is plotted
+        #     print(f"DEBUG StaticPlots.histogram (Separate KDE): Plotting KDE for {col_name} with color='{final_kde_color_for_plot}', linewidth={kde_linewidth}, alpha={kde_alpha}")
+
+        #     # Handle y-axis scaling for KDE based on histogram's statistic
+        #     if statistic_type in ['count', 'frequency']:
+        #         # For count/frequency histograms, KDE (density) needs its own scale.
+        #         # Plot on a twin axis.
+        #         ax2 = ax.twinx()
+        #         sns.kdeplot(
+        #             data=self.data,
+        #             x=col_name,
+        #             ax=ax2,
+        #             color=final_kde_color_for_plot,
+        #             linewidth=kde_linewidth,
+        #             alpha=kde_alpha
+        #         )
+        #         ax2.set_yticks([])  # Hide secondary y-axis ticks
+        #         ax2.set_ylabel('')  # Hide secondary y-axis label
+        #     else: # For 'density' or 'probability', KDE can share the primary y-axis
+        #         sns.kdeplot(
+        #             data=self.data,
+        #             x=col_name,
+        #             ax=ax,
+        #             color=final_kde_color_for_plot,
+        #             linewidth=kde_linewidth,
+        #             alpha=kde_alpha
+        #         )
+                
+        # ax.set_title(f'Histogram of {col_name}')
+        # return ax
 
 
     def kde(self, col_name:str, ax:int, hue_col:str=None, **kwargs):
@@ -272,32 +309,6 @@ class StaticPlots(Descriptive):
             print(f"Error in count_plot: {err_msg}")
         return ax
 
-        # actual_color = color
-        # if hue_col and color:
-        #     print(f"Warning: Both 'color' and 'hue_col' provided for count_plot. Hue will likely determine colors via palette.")
-        #     actual_color = None # Let hue and palette control
-
-        # print(f"DEBUG: Calling sns.countplot for {x_col} with hue_col '{hue_col}', color '{actual_color}', kwargs: {plot_specific_kwargs}")
-        # try:
-        #     sns.countplot(
-        #         data=self.data,
-        #         x=x_col,
-        #         hue=hue_col, # Pass hue_col to sns.countplot's 'hue'
-        #         color=actual_color, # Pass color
-        #         ax=ax,
-        #         **plot_specific_kwargs # Pass filtered additional kwargs
-        #     )
-        #     plot_title = f"Count Plot for {x_col}"
-        #     if hue_col:
-        #         plot_title += f" by {hue_col}"
-        #     ax.set_title(plot_title)
-        #     ax.tick_params(axis='x', rotation=45)
-        # except Exception as e:
-        #     err_msg = f"Could not create count plot for {x_col}: {e}"
-        #     ax.set_title(err_msg, color='red')
-        #     ax.text(0.5, 0.5, err_msg, ha='center', va='center', wrap=True, color='red')
-        #     print(f"Error in count_plot: {err_msg}")
-        # return ax
 
     def bar_chart(self, 
                   ax: plt.Axes, 
