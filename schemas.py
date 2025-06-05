@@ -82,7 +82,6 @@ class PlotParameter(BaseModel):
     cmap: Optional[str] = 'viridis'
     annot_kws: Optional[Dict[str, Any]] = None
 
-    #For displot
     kind: Optional[str] = None
 
     #For count plot
@@ -99,7 +98,7 @@ class PlotConfig(BaseModel):
     'type' specifies which plotting method to use.
     'params' holds the arguments for that plotting method.
     """
-    type: str = Field(..., examples=["histogram", "kde", "scatter", "crosstab_heatmap", "bar_chart", "count_plot", "displot"],
+    type: str = Field(..., examples=["histogram", "kde", "scatter", "crosstab_heatmap", "bar_chart", "count_plot"],
                       description="The type of plot to generate.")
     params: PlotParameter = Field(..., description="Parameters specific to the chosen plot type.")
 

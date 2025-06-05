@@ -56,8 +56,14 @@ class BaseDataManager(ABC):
         return df.columns.tolist()
     
     def get_categorical_column_names(self) -> List[str]:
-        cat_names = self.get_processed_df().select_dtypes(include=['category','object','int'])
-        return cat_names.columns.tolist()
+        df = self.get_processed_df()
+        cat_names = df.select_dtypes(include=['object','category']).columns.tolist()
+        int_names = df.select_dtypes(include=['integer', 'int8', 'int16', 'int64']).columns
+        for column_name in int_names:
+            if column_name not in cat_names:
+                if df[column_name].nunique() < 15:
+                    cat_names.append(column_name)
+        return list(dict.fromkeys(cat_names))
     
     def get_numerical_data_column_names(self) -> List[str]:
         num_names = self.get_processed_df().select_dtypes(include=['float', 'int'])

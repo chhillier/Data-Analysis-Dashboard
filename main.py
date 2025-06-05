@@ -257,39 +257,6 @@ async def post_dashboard_plot_endpoint(
         print(f"Error in /api/plots/dashboard endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Error generating dashboard plot: {str(e)}")
 
-@app.get("/api/plots/displot", tags=[TAG_STATIC_PLOTS], response_class=StreamingResponse)
-async def get_displot_endpoint(
-    col_name: str = Query(..., description="Column name for the displot."), 
-    kind: str = Query(..., description="Kind of displot (e.g., 'hist', 'kde', 'ecdf')."), 
-    hue_col: Optional[str] = Query(None, description="Optional column name for hue."),
-    include_columns: Optional[List[str]] = Query(None),
-    exclude_columns: Optional[List[str]] = Query(None),
-    # Add other plot_specific_kwargs for displot as Query params if needed
-    # e.g. bins: Optional[int] = Query(None)
-    base_df: pd.DataFrame = Depends(get_dataframe_dependency)
-):
-    """Generate a distribution plot (displot)."""
-    try:
-        plot_specific_kwargs = {} # Collect any extra displot params here
-        # if bins is not None: plot_specific_kwargs['bins'] = bins
-
-        img_bytes_io = plots_api.handle_generate_displot(
-            base_df=base_df,
-            col_name=col_name,
-            kind=kind,
-            hue_col=hue_col,
-            include_columns=include_columns,
-            exclude_columns=exclude_columns,
-            **plot_specific_kwargs 
-        )
-        if img_bytes_io is None:
-             raise HTTPException(status_code=500, detail="Failed to generate displot image.")
-        return StreamingResponse(img_bytes_io, media_type="image/png")
-    except ValueError as e: 
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        print(f"Error in /api/plots/displot endpoint: {e}")
-        raise HTTPException(status_code=500, detail=f"Error generating displot: {str(e)}")
 """
 --- Uvicorn runner for direct execution (optional) ---
 """

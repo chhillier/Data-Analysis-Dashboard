@@ -159,7 +159,7 @@ with tab_plots:
         st.markdown("---")
         st.subheader("Configure and Generate Single Plot")
         
-        plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap", "displot"]
+        plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap"]
         selected_plot_type = st.selectbox("Select Plot Type:", plot_types_available, key="plot_type_select_main_v3")
         
         # Initialize plot_params_ui for the selected type
@@ -168,8 +168,6 @@ with tab_plots:
 
         if selected_plot_type == "kde":
             _primary_column_options_list_for_ui = effective_numerical_cols_for_plot_ui
-        elif selected_plot_type == "displot":
-            _primary_column_options_list_for_ui = effective_cols_for_plot_ui
         elif selected_plot_type != "crosstab_heatmap":
             _primary_column_options_list_for_ui = effective_cols_for_plot_ui
         
@@ -181,7 +179,7 @@ with tab_plots:
                                                   key="plot_param_col_name_main_v3")
         #--- Conditionally display Hue Column ---
         #Used by kde, scatter, bar chart, count plot, displot. Not used by histogram or crosstab_heatmap
-        if selected_plot_type in ["kde", "scatter", "bar_chart", "count_plot", "displot"]:
+        if selected_plot_type in ["kde", "scatter", "bar_chart", "count_plot"]:
             plot_params_ui['hue_col'] = st.selectbox("Hue Column (hue_col):", [None] + effective_categorical_cols_for_plot_ui, 
                                                 index=0,
                                                 key="plot_param_hue_col_main_v3")    
@@ -300,14 +298,14 @@ with tab_plots:
             if user_palette_bar.strip():
                 plot_params_ui['palette'] = user_palette_bar.strip()
 
-            # plot_params_ui['alpha'] = st.slider(
-            #     "Bar Transparency (Alpha) :",
-            #     min_value = 0.1,
-            #     max_value = 1.0,
-            #     value = 1.0,
-            #     step = 0.1,
-            #     key = "count_alpha_main_v3"
-            # )
+            plot_params_ui['alpha'] = st.slider(
+                "Bar Transparency (Alpha) :",
+                min_value = 0.1,
+                max_value = 1.0,
+                value = 1.0,
+                step = 0.1,
+                key = "count_alpha_main_v3"
+            )
 
         elif selected_plot_type == "count_plot":
             primary_column_for_x = plot_params_ui.pop('col_name', None)
@@ -380,21 +378,12 @@ with tab_plots:
             if user_colormap.strip():
                 plot_params_ui['cmap'] = user_colormap.strip()
 
-        
-        elif selected_plot_type == "displot":
-            displot_kind_options = ["hist", "kde", "ecdf"]
-            plot_params_ui['kind'] = st.selectbox(
-                "Kind of Distribution Plot:",
-                options = displot_kind_options,
-                index = 0,
-                key = "displot_param_kind_main_v3"
-            )
 
 
         if st.button(f"Generate {selected_plot_type}", key=f"gen_dyn_plot_main_v3"):
             ready_to_plot = False
             # Validate essential parameters based on plot type
-            if selected_plot_type in ["histogram", "kde", "displot"] and plot_params_ui.get('col_name'):
+            if selected_plot_type in ["histogram", "kde"] and plot_params_ui.get('col_name'):
                 ready_to_plot = True
             elif selected_plot_type == "scatter" and plot_params_ui.get('col_name_x') and plot_params_ui.get('col_name_y'):
                 ready_to_plot = True

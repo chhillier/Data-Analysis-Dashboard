@@ -205,25 +205,6 @@ class StaticPlots(Descriptive):
             title += f" by {hue_col}"
         ax.set_title(title)
         return ax
-    
-    def dist_plot(self,
-                  col_name:str,
-                  kind,
-                  hue_col: Optional[str] = None,
-                  **kwargs,
-    ) -> plt.Figure:
-        g = sns.displot(
-            data = self.data,
-            x = col_name,
-            hue= hue_col,
-            kind= kind,
-            **kwargs
-        )
-        title = f"Distribution Plot of '{col_name}' (Kind :{kind})"
-        if hue_col:
-            title += f" by '{hue_col}'"
-        g.figure.suptitle(title, y=1.03)
-        return g.figure
             
     def count_plot(self, 
                    ax: plt.Axes, 
