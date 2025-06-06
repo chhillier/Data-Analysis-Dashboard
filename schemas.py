@@ -39,6 +39,13 @@ class UniqueCountsResponse(BaseModel):
 class InfoResponse(BaseModel):
     info_string : str
 
+class DatasetListResponse(BaseModel):
+    datasets: List[str]
+
+class StatusResponse(BaseModel):
+    status: str
+    message: str
+
 """Plot Configuration Models (for Request Bodies)"""
 
 class PlotParameter(BaseModel):
@@ -81,8 +88,6 @@ class PlotParameter(BaseModel):
     fmt: Optional[str] = 'd'
     cmap: Optional[str] = 'viridis'
     annot_kws: Optional[Dict[str, Any]] = None
-
-    kind: Optional[str] = None
 
     #For count plot
     dodge: Optional[bool] = None
