@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query, Body # Ensure Body i
 from fastapi.responses import StreamingResponse # For plot image responses
 
 # Import your custom modules
-from api_data_manager import default_data_manager
+from api_data_manager import get_active_data_manager, load_dataset, AVAILABLE_DATASETS
 import api_descriptive_handlers as desc_api
 import api_plot_handlers as plots_api # Ensure this is imported
 import schemas # Your Pydantic models
@@ -16,7 +16,7 @@ import schemas # Your Pydantic models
 async def lifespan(app_instance: FastAPI):
     print("FastAPI application startup (using lifespan)...")
     try:
-        default_data_manager.load_and_prepare_data()
+        get_active_data_manager()
         print("Data loading process via DataManager initiated successfully during lifespan startup")
     except Exception as e:
         print(f"CRITICAL STARTUP ERROR during lifespan: DataManager failed to load data: {e}")
@@ -28,14 +28,15 @@ app = FastAPI(
     lifespan=lifespan, 
     title="Descriptive Statistics and Plotting API",
     description="API to serve data summaries and plots from the loaded dataset.",
-    version="0.1.0"
+    version="0.1.1"
 )
 
 # --- Dependency to get DataFrame ---
 def get_dataframe_dependency() -> pd.DataFrame:
     """Dependency function to get the processed DataFrame from the DataManager instance."""
     try:
-        return default_data_manager.get_processed_df() # Corrected: added ()
+        active_manager = get_active_data_manager()
+        return active_manager.get_processed_df()
     except RuntimeError as e:
         print(f"Error in get_dataframe_dependency: {e}")
         raise HTTPException(status_code=503, detail=f"Service temporarily unavailable: Data not loaded - {str(e)}")
@@ -53,20 +54,32 @@ TAG_STATIC_PLOTS = "Static Plots"
 # --- General & Data Info Endpoints ---
 @app.get("/api/health", tags=[TAG_GENERAL])
 async def health_check():
-    """Check if the API is running and data is loaded."""
-    is_data_loaded = False
-    if hasattr(default_data_manager, '_is_loaded'):
-        is_data_loaded = default_data_manager._is_loaded
-    return {"status": "API is running", "data_manager_initialized": True, "data_loaded_successfully": is_data_loaded}
+    try:
+        active_manager = get_active_data_manager()
+        is_data_loaded = active_manager._is_loaded
+        active_dataset_name = active_manager.source_name
+
+        return {
+            "status" : "API is running",
+            "data_loaded": is_data_loaded,
+            "active_dataset": active_dataset_name
+        }
+    except Exception as e:
+        return {
+            "status": "API is running but in a degraded state",
+            "data_loaded": False,
+            "error": str(e)
+        }
 
 @app.get("/api/data/columns", tags=[TAG_DATA_INFO])
 async def get_columns_info_endpoint():
     """Get lists of all, categorical, and numerical column names from the loaded dataset."""
     try:
+        active_manager = get_active_data_manager()
         return {
-            "all_columns": default_data_manager.get_column_names(),
-            "categorical_columns": default_data_manager.get_categorical_column_names(),
-            "numerical_columns": default_data_manager.get_numerical_data_column_names()
+            "all_columns": active_manager.get_column_names(),
+            "categorical_columns": active_manager.get_categorical_column_names(),
+            "numerical_columns": active_manager.get_numerical_data_column_names()
         }
     except RuntimeError as e: 
         raise HTTPException(status_code=503, detail=f"Service temporarily unavailable: {str(e)}")
