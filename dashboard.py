@@ -1,4 +1,4 @@
-# dashboard.py - Final Consolidated & Corrected Version
+# dashboard.py - Final Corrected Version
 import streamlit as st
 import requests 
 import pandas as pd 
@@ -36,67 +36,16 @@ def get_available_datasets() -> List[str]:
         st.error(f"Could not fetch dataset list from API: {e}")
         return []
 
-# In dashboard.py
-
-# In dashboard.py
-
-# ... (keep all the code above this line, including imports and helper functions) ...
-
-# --- Session State Initialization ---
-if 'app_initialized' not in st.session_state:
-    st.session_state.app_initialized = True
-    # Set the default active dataset name on the first run
-    st.session_state.active_dataset = "diamonds"
-    
-    # Initialize all UI visibility toggles to False
-    section_keys = [
-        "show_numerical_summary", "show_categorical_summary", "show_unique_counts", 
-        "show_dataset_shape", "show_dataset_info", "show_frequency_table_section", 
-        "show_crosstab_section", "show_filtered_data_view"
-    ]
-    for key in section_keys:
-        if key not in st.session_state:
-            st.session_state[key] = False
-    
-    # Rerun once after first initialization to ensure a clean state
-    st.rerun()
-
-# --- Data-Dependent Initialization (runs on each script execution) ---
-# This part fetches the column data. The cache prevents redundant API calls
-# unless the dataset has been switched (which clears the cache).
-column_data = get_column_data_from_api() 
-if column_data:
-    st.session_state.all_columns = column_data.get("all_columns", [])
-    st.session_state.numerical_cols = column_data.get("numerical_columns", [])
-    st.session_state.categorical_cols = column_data.get("categorical_columns", [])
-else: 
-    st.warning("API for columns failed. Using empty column lists.")
-    st.session_state.all_columns = []
-    st.session_state.numerical_cols = []
-    st.session_state.categorical_cols = []
-
-# Populate local variables from session state for easier access in the UI code
-all_columns: List[str] = st.session_state.get('all_columns', [])
-numerical_cols: List[str] = st.session_state.get('numerical_cols', [])
-categorical_cols: List[str] = st.session_state.get('categorical_cols', [])
-
-# --- Main App UI ---
-st.sidebar.title("Controls & Options")
-# ... (The rest of your script starts here with the sidebar expanders) ...
-
 def display_df_from_api_split_response(
     response_data_split: Dict[str, Any], 
     success_message: str = "Data loaded.", 
     index_level_names: Optional[List[str]] = None
 ):
     """Reconstructs and displays a DataFrame from a 'split' format JSON response."""
-    # --- Validation ---
     if not isinstance(response_data_split, dict) or any(k not in response_data_split for k in ['index', 'columns', 'data']):
-        st.error(f"API Error for '{success_message}': Invalid data format received.")
+        st.error(f"API Error for '{success_message}': Invalid data format received from API.")
         st.json({"unexpected_response": response_data_split})
         return
-
-    # --- DataFrame Reconstruction ---
     try:
         index_from_json = response_data_split['index']
         columns_from_json = response_data_split['columns']
@@ -104,7 +53,6 @@ def display_df_from_api_split_response(
 
         reconstructed_index = None
         if index_from_json: 
-            # Process for simple or multi-level indexes
             processed_index_tuples = [tuple(item) if isinstance(item, list) else item for item in index_from_json]
             if processed_index_tuples and isinstance(processed_index_tuples[0], tuple): 
                 reconstructed_index = pd.MultiIndex.from_tuples(processed_index_tuples, names=index_level_names)
@@ -112,17 +60,26 @@ def display_df_from_api_split_response(
                 idx_name = index_level_names[0] if index_level_names and len(index_level_names) == 1 else None
                 reconstructed_index = pd.Index(processed_index_tuples, name=idx_name)
         
-        # Manually reconstruct the DataFrame - this is the correct way
         df_display = pd.DataFrame(data=data_from_json, index=reconstructed_index, columns=columns_from_json)
-        
         st.dataframe(df_display)
         st.success(success_message)
-        
     except Exception as e: 
-        st.error(f"Error creating DataFrame for '{success_message}': {e}")
-        st.text("The API returned the following data, which could not be processed:")
-        st.json(response_data_split)
+        st.error(f"Error displaying DataFrame for '{success_message}': {e}")
         traceback.print_exc()
+
+# --- Session State Initialization ---
+if 'app_initialized' not in st.session_state:
+    st.session_state.app_initialized = True
+    st.session_state.active_dataset = "diamonds"
+    
+    keys_to_init = [
+        "show_numerical_summary", "show_categorical_summary", "show_unique_counts", 
+        "show_dataset_info", "show_frequency_table_section", "show_crosstab_section"
+    ]
+    for key in keys_to_init:
+        if key not in st.session_state:
+            st.session_state[key] = False
+    st.rerun()
 
 # --- Data-Dependent State ---
 column_data = get_column_data_from_api() 
@@ -138,17 +95,15 @@ numerical_cols: List[str] = st.session_state.get('numerical_cols', [])
 categorical_cols: List[str] = st.session_state.get('categorical_cols', [])
 
 
-# --- Main App UI ---
+# --- Sidebar UI ---
 st.sidebar.title("Controls & Options")
-
-# --- Sidebar Controls ---
-with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=False):
+with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=True):
     selection_mode = st.radio(
         "Filter columns by:",
-        ["Including selected columns", "Excluding selected columns"],
+        ["Including selected", "Excluding selected"],
         key="column_selection_mode"
     )
-    if selection_mode == "Including selected columns":
+    if selection_mode == "Including selected":
         st.caption("Choose columns to use for all plots and statistics.")
         include_cols = st.multiselect("Columns to Include:", options=all_columns, key="dashboard_include_cols")
         exclude_cols = []
@@ -157,17 +112,8 @@ with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=Fal
         exclude_cols = st.multiselect("Columns to Exclude:", options=all_columns, key="dashboard_exclude_cols")
         include_cols = []
 
-with st.sidebar.expander("Data View Controls", expanded=True):
-    st.subheader("Row Filters")
-    filter_col = st.selectbox("Filter by column:", [None] + all_columns, key="filter_col_select_view")
-    filter_val = st.text_input(f"Enter value for '{filter_col}':", key="filter_value_input_view") if filter_col else ""
-    st.subheader("Column Selection")
-    view_include_cols = st.multiselect("Include columns in view:", all_columns, default=all_columns, key="view_tab_include")
-    view_exclude_cols = st.multiselect("Exclude columns from view:", all_columns, key="view_tab_exclude")
-
-
 # --- Main Page Content ---
-st.markdown("### 1. Select a Dataset")
+st.markdown("### Select a Dataset")
 available_datasets = get_available_datasets()
 if available_datasets:
     try:
@@ -181,7 +127,6 @@ if available_datasets:
             try:
                 response = requests.post(f"{FASTAPI_BASE_URL}/datasets/select/{selected_dataset}")
                 response.raise_for_status()
-                
                 new_active_dataset = selected_dataset
                 protected_keys = ['app_initialized'] 
                 for key in list(st.session_state.keys()):
@@ -194,13 +139,12 @@ if available_datasets:
                 st.error(f"Failed to switch dataset: {e}")
 else:
     st.warning("No datasets discovered.")
+
 st.markdown("---")
 
+tab_plots, tab_descriptive_stats = st.tabs(["📊 Plot Dashboard", "🔢 Descriptive Statistics"])
 
-# --- Main UI Tabs ---
-tab_plots, tab_descriptive_stats, tab_data_view = st.tabs(["📊 Plot Dashboard", "🔢 Descriptive Statistics", "📄 View/Filter Data"])
-
-# Determine effective columns once, based on global sidebar filters
+# Determine effective columns once, based on the single global sidebar filter
 effective_cols = list(all_columns)
 if include_cols:
     effective_cols = [col for col in all_columns if col in include_cols]
@@ -209,15 +153,12 @@ elif exclude_cols:
 effective_categorical_cols = [col for col in categorical_cols if col in effective_cols]
 effective_numerical_cols = [col for col in numerical_cols if col in effective_cols]
 
-
 with tab_plots:
     st.header("Plot Generation")
     with st.expander("Configure Plot", expanded=True):
         st.subheader("1. Select Plot Type and Axes")
-        
         plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap"]
         selected_plot_type = st.selectbox("Plot Type:", plot_types_available, key="plot_type_select")
-        
         plot_params = {}
         
         primary_col_options = {
@@ -244,7 +185,6 @@ with tab_plots:
         st.subheader("2. Adjust Plot-Specific Options")
         
         palette_options = [None, 'pastel', 'husl', 'Set2', 'flare', 'viridis', 'mako']
-
         if selected_plot_type == "histogram":
             is_numeric = bool(plot_params.get('col_name') and plot_params.get('col_name') in effective_numerical_cols)
             plot_params['bins'] = st.slider("Bins:", 10, 100, 30, key="hist_bins")
@@ -253,7 +193,7 @@ with tab_plots:
                 if plot_params.get('kde'):
                     plot_params['kde_line_color'] = st.color_picker("KDE Line Color:", "#FF5733", key="hist_kde_color")
             plot_params['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color")
-            plot_params['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], key="hist_stat", help="The aggregate statistic for each bar.")
+            plot_params['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], key="hist_stat", help="The aggregate statistic for each bin.")
         
         elif selected_plot_type == "kde":
             plot_params['fill'] = st.checkbox("Fill KDE plot?", value=True, key="kde_fill")
@@ -313,15 +253,13 @@ with tab_plots:
 with tab_descriptive_stats:
     st.header("Descriptive Statistics")
     
-    query_params_for_desc_tab = {}
-    if include_cols: query_params_for_desc_tab["include_columns"] = include_cols
-    if exclude_cols: query_params_for_desc_tab["exclude_columns"] = exclude_cols
-
+    query_params_for_desc_tab = {"include_columns": include_cols, "exclude_columns": exclude_cols}
+    
     sections = {
-        "Numerical Summary": {"endpoint": "numerical-summary", "state_var": "show_numerical_summary"},
-        "Categorical Summary": {"endpoint": "categorical-summary", "state_var": "show_categorical_summary"},
-        "Unique Value Counts": {"endpoint": "unique-counts", "state_var": "show_unique_counts"},
-        "Dataset Info": {"endpoint": "info", "state_var": "show_dataset_info"},
+        "Numerical Summary": {"endpoint": "numerical-summary", "state_var": "show_numerical_summary", "response_type": "split_df"},
+        "Categorical Summary": {"endpoint": "categorical-summary", "state_var": "show_categorical_summary", "response_type": "split_df"},
+        "Unique Value Counts": {"endpoint": "unique-counts", "state_var": "show_unique_counts", "response_type": "json_counts"},
+        "Dataset Info": {"endpoint": "info", "state_var": "show_dataset_info", "response_type": "text_area_info"},
         "Frequency Table": {"endpoint": "frequency-table", "state_var": "show_frequency_table_section"},
         "Cross-Tabulations": {"endpoint": "cross-tabs", "state_var": "show_crosstab_section"}
     }
@@ -336,20 +274,19 @@ with tab_descriptive_stats:
         st.button(button_label, key=f"btn_toggle_{state_var}", on_click=handle_independent_toggle, args=(state_var,))
             
         if st.session_state.get(state_var, False):
+            endpoint_url = f"{FASTAPI_BASE_URL}/descriptive/{config['endpoint']}"
             try:
-                # Logic for sections with extra UI
                 if title == "Frequency Table":
                     if not categorical_cols: st.info("No categorical columns available.")
                     else:
                         selected_col_freq = st.selectbox("Select column:", categorical_cols, key="freq_table_col_select")
-                        if st.button("Generate Table", key="btn_gen_freq_table"):
-                            endpoint_url = f"{FASTAPI_BASE_URL}/descriptive/{config['endpoint']}"
+                        if st.button("Generate Frequency Table", key="btn_gen_freq_table"):
                             api_params = query_params_for_desc_tab.copy()
                             api_params["column_name"] = selected_col_freq
                             with st.spinner(f"Fetching {title}..."):
                                 response = requests.get(endpoint_url, params=api_params)
                                 response.raise_for_status()
-                                display_df_from_api_split_response(response.json(), f"{title} for '{selected_col_freq}'.", index_level_names=[selected_col_freq])
+                                display_df_from_api_split_response(response.json(), f"Table for '{selected_col_freq}'.", index_level_names=[selected_col_freq])
                 
                 elif title == "Cross-Tabulations":
                     if not categorical_cols: st.info("No categorical columns available.")
@@ -358,60 +295,27 @@ with tab_descriptive_stats:
                         column_cols = st.multiselect("Column(s):", categorical_cols, key="crosstab_columns")
                         normalize = st.checkbox("Normalize?", key="crosstab_normalize")
                         margins = st.checkbox("Show Margins?", key="crosstab_margins")
-                        if st.button("Generate Table", key="btn_gen_crosstab_table"):
+                        if st.button("Generate Cross-Tabulation", key="btn_gen_crosstab_table"):
                             if not index_cols or not column_cols: st.warning("Please select at least one index AND one column.")
                             else:
-                                endpoint_url = f"{FASTAPI_BASE_URL}/descriptive/{config['endpoint']}" 
                                 payload = {"index_names": index_cols, "column_names": column_cols, "normalize": normalize, "margins": margins}
                                 with st.spinner(f"Generating {title}..."):
                                     response = requests.post(endpoint_url, json=payload, params=query_params_for_desc_tab)
                                     response.raise_for_status() 
                                     display_df_from_api_split_response(response.json(), "Crosstab loaded.", index_level_names=index_cols)
                 
-                else: # Logic for simple summary sections
-                    endpoint_url = f"{FASTAPI_BASE_URL}/descriptive/{config['endpoint']}"
+                else: 
                     with st.spinner(f"Fetching {title}..."):
                         response = requests.get(endpoint_url, params=query_params_for_desc_tab)
                     response.raise_for_status()
                     response_data = response.json()
-                    
-                    if title in ["Numerical Summary", "Categorical Summary", "Dataset Shape"]:
-                        display_df_from_api_split_response(response_data, f"{title}.")
-                    elif title == "Unique Value Counts":
-                        st.json(response_data.get("counts", {}))
-                    elif title == "Dataset Info":
-                        st.text_area(f"{title}", response_data.get("info_string", ""), height=300)
+                    response_type = config.get("response_type")
+                    if response_type == "split_df": display_df_from_api_split_response(response_data, f"{title}.")
+                    elif response_type == "json_counts": st.json(response_data.get("counts", {}))
+                    elif response_type == "json_direct": st.json(response_data)
+                    elif response_type == "text_area_info": st.text_area(f"{title}", response_data.get("info_string", ""), height=300)
                     st.success(f"{title} loaded.")
             except Exception as e:
                 st.error(f"API Error ({title}): {e}")
                 st.session_state[state_var] = False
         st.markdown("---")
-
-with tab_data_view:
-    st.header("View and Filter Data")
-    if st.checkbox("Show Data View", key="toggle_filtered_data"):
-        query_params = {}
-        if view_include_cols: query_params["include_columns"] = view_include_cols
-        if view_exclude_cols: query_params["exclude_columns"] = view_exclude_cols
-        
-        payload = {"cols": [], "values": []}
-        if filter_col and filter_val.strip(): 
-            payload["cols"] = [filter_col]
-            payload["values"] = [filter_val] 
-
-        with st.spinner("Fetching data..."):
-            try:
-                response = requests.post(f"{FASTAPI_BASE_URL}/descriptive/filter", json=payload, params=query_params)
-                response.raise_for_status()
-                response_data = response.json() 
-                if "records" in response_data:
-                    df_filtered = pd.DataFrame.from_records(response_data["records"])
-                    st.dataframe(df_filtered)
-                    st.success(f"Loaded {len(df_filtered)} rows.")
-                    if df_filtered.empty:
-                        st.info("The current filter/selection resulted in no data.")
-                else:
-                    st.warning("Data not in expected 'records' format.")
-                    st.json(response_data)
-            except Exception as e:
-                st.error(f"API Error (Filtered Data): {e}")
