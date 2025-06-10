@@ -84,54 +84,10 @@ class StaticPlots(Descriptive):
             else:
                 print(f"INFO StaticPlots.histogram: KDE overlay skipped for non-numeric column '{col_name}'.")
                 
-        ax.set_title(f'Histogram of {col_name}')
-        # return ax
-        # # --- Plot 2: The KDE Line (if enabled) ---
-        # if kde_enabled:
-        #     # Determine the KDE line color
-        #     # Use the custom color if provided, otherwise pick a default distinct from bar color
-        #     if kde_custom_line_color:
-        #         final_kde_color_for_plot = kde_custom_line_color
-        #     else: # Default KDE line color logic if not specified by user
-        #         if color.lower() == '#ff5733':  # If bar color is default orange
-        #             final_kde_color_for_plot = '#1f77b4'  # Make KDE blue
-        #         else:
-        #             final_kde_color_for_plot = '#FF5733'  # Default KDE to orange
+        ax.set_title(f"Distribution of {col_name.replace('_',' ').title()} ({statistic_type.capitalize()})", fontsize = 14)
+        ax.tick_params(axis='x', rotation=45)
+        return ax
 
-        #     # Get other KDE styling parameters (these are hardcoded for now, but could come from UI/kwargs)
-        #     kde_linewidth = kwargs.pop('kde_linewidth', 2) # Example if you add this to schema later
-        #     kde_alpha = kwargs.pop('kde_alpha', 1)       # Example if you add this to schema later
-
-        #     # Debug print specifically for when KDE is plotted
-        #     print(f"DEBUG StaticPlots.histogram (Separate KDE): Plotting KDE for {col_name} with color='{final_kde_color_for_plot}', linewidth={kde_linewidth}, alpha={kde_alpha}")
-
-        #     # Handle y-axis scaling for KDE based on histogram's statistic
-        #     if statistic_type in ['count', 'frequency']:
-        #         # For count/frequency histograms, KDE (density) needs its own scale.
-        #         # Plot on a twin axis.
-        #         ax2 = ax.twinx()
-        #         sns.kdeplot(
-        #             data=self.data,
-        #             x=col_name,
-        #             ax=ax2,
-        #             color=final_kde_color_for_plot,
-        #             linewidth=kde_linewidth,
-        #             alpha=kde_alpha
-        #         )
-        #         ax2.set_yticks([])  # Hide secondary y-axis ticks
-        #         ax2.set_ylabel('')  # Hide secondary y-axis label
-        #     else: # For 'density' or 'probability', KDE can share the primary y-axis
-        #         sns.kdeplot(
-        #             data=self.data,
-        #             x=col_name,
-        #             ax=ax,
-        #             color=final_kde_color_for_plot,
-        #             linewidth=kde_linewidth,
-        #             alpha=kde_alpha
-        #         )
-                
-        # ax.set_title(f'Histogram of {col_name}')
-        # return ax
 
 
     def kde(self, col_name:str, ax:int, hue_col:str=None, **kwargs):
@@ -169,7 +125,10 @@ class StaticPlots(Descriptive):
                     alpha = ui_alpha,
                     linewidth = ui_linewidth,
                     **remaining_kde_kwargs)
-        ax.set_title(f"KDE plot of {col_name}")
+        title = f"Density Estimate of {col_name.replace('_', ' ').title()}"
+        if hue_col: title += f" by {hue_col.replace('_', ' ').title()}"
+        ax.set_title(title, fontsize = 14)
+        ax.tick_params(axis='x', rotation=45)
         return ax
 
     def scatter(self, 
@@ -237,10 +196,10 @@ class StaticPlots(Descriptive):
             **scatter_plot_kwargs # Pass filtered additional kwargs
         )
         
-        title = f"Scatterplot of {col_name_x} and {col_name_y}"
-        if hue_col:
-            title += f" by {hue_col}"
-        ax.set_title(title)
+        title = f"{col_name_y.replace('_', ' ').title()} vs. {col_name_x.replace('_', ' ').title()}"
+        if hue_col: title += f" by {hue_col.replace('_', ' ').title()}"
+        ax.set_title(title, fontsize = 14)
+        ax.tick_params(axis='x', rotation=45)
         return ax
             
     def count_plot(self, 
@@ -296,10 +255,9 @@ class StaticPlots(Descriptive):
                 alpha=ui_alpha,             # Pass alpha here
                 **remaining_countplot_kwargs
             )
-            plot_title = f"Count Plot for {x_col}"
-            if hue_col:
-                plot_title += f" by {hue_col}"
-            ax.set_title(plot_title)
+            title = f"Count of Observations by {x_col.replace('_', ' ').title()}"
+            if hue_col: title += f" (Grouped by {hue_col.replace('_', ' ').title()})"
+            ax.set_title(title, fontsize = 14)
             ax.tick_params(axis='x', rotation = 45)
 
         except Exception as e:
@@ -362,14 +320,11 @@ class StaticPlots(Descriptive):
             effective_color = None 
         
         # Prepare title
-        plot_title = f"Bar Chart: {x_col}" 
-        if y_col:
-            plot_title += f" vs {y_col}"
-        if hue_col:
-            plot_title += f" by {hue_col}"
-        if estimator and y_col: # Add estimator info if y_col is present
-            estimator_name = self._get_estimator_name(estimator) # Use your helper
-            plot_title += f" ({estimator_name} of {y_col})"
+        estimator_name = self._get_estimator_name(estimator)
+        title = f"{estimator_name.capitalize()} of {y_col.replace('_', ' ').title()} by {x_col.replace('_', ' ').title()}"
+        if hue_col: title += f" (Grouped by {hue_col.replace('_', ' ').title()})"
+        ax.set_title(title, fontsize = 14)
+        ax.tick_params(axis='x', rotation=45) # Consider making rotation conditional or a param
 
 
         print(f"DEBUG: Calling sns.barplot for x='{x_col}', y='{y_col}', hue='{hue_col}', "
@@ -395,8 +350,8 @@ class StaticPlots(Descriptive):
                 ax=ax,
                 **plot_specific_kwargs # Pass any other filtered kwargs
             )
-            ax.set_title(plot_title)
-            ax.tick_params(axis='x', rotation=45) # Consider making rotation conditional or a param
+            
+            
         except Exception as e:
             err_msg = f"Error generating bar chart for {x_col}: {e}"
             ax.set_title(err_msg, color='red', fontsize=10) # Smaller font for error title
@@ -449,6 +404,7 @@ class StaticPlots(Descriptive):
         except Exception as e:
             # ... (your existing exception handling for plotting) ...
             print(f"Error plotting heatmap: {e}")
+        ax.tick_params(axis='x', rotation=45)
         return ax
         
     def subplots(self, plot_configs, nrows=None, ncols=None, figsize=(12, 8), main_title="Data Exploration Subplots"):
@@ -542,7 +498,7 @@ class StaticPlots(Descriptive):
 
 if __name__ == "__main__":
     from api_data_manager import CSVDataManager
-    instance_of_data = CSVDataManager(file_path="diamonds.csv")
+    instance_of_data = CSVDataManager(file_path="datasets/diamonds.csv")
     instance_of_data.load_and_prepare_data()
     df = instance_of_data.get_processed_df()
     plots = StaticPlots(data_df=df)
@@ -589,7 +545,7 @@ if __name__ == "__main__":
     # For a bar chart of mean price by cut:
     {
         'type': 'bar_chart',
-        'params': {'x_col': 'cut', 'y_col': 'price', 'estimator': 'mean', 'hue': 'color'}
+        'params': {'x_col': 'cut', 'y_col': 'price', 'estimator': 'mean', 'hue_col': 'color'}
     },
     # For a count plot of cut:
     {
@@ -600,6 +556,6 @@ if __name__ == "__main__":
     ]
     plots.subplots(plot_configurations,
                    figsize=(18,10))
-    plots.dist_plot(col_name='price',kind='hist',hue_col='cut')
+
     plt.show()
 
