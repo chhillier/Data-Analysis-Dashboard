@@ -36,75 +36,68 @@ def get_available_datasets() -> List[str]:
         st.error(f"Could not fetch dataset list from API: {e}")
         return []
 
+# In dashboard.py
+
+# In dashboard.py
+
+# In dashboard.py
+
 def display_df_from_api_split_response(
     response_data_split: Dict[str, Any], 
     success_message: str = "Data loaded.", 
     index_level_names: Optional[List[str]] = None
 ):
     """Reconstructs and displays a DataFrame from a 'split' format JSON response."""
+    # --- Validation ---
     if not isinstance(response_data_split, dict) or any(k not in response_data_split for k in ['index', 'columns', 'data']):
         st.error(f"API Error for '{success_message}': Invalid data format received from API.")
         st.json({"unexpected_response": response_data_split})
         return
+    
+    # --- DataFrame Reconstruction and Display ---
     try:
         index_from_json = response_data_split['index']
         columns_from_json = response_data_split['columns']
         data_from_json = response_data_split['data']
         
-        reconstructed_index = None
-        if index_from_json: 
-            processed_index_tuples = [tuple(item) if isinstance(item, list) else item for item in index_from_json]
-            if processed_index_tuples and isinstance(processed_index_tuples[0], tuple): 
-                reconstructed_index = pd.MultiIndex.from_tuples(processed_index_tuples, names=index_level_names)
-            else: 
-                idx_name = index_level_names[0] if index_level_names and len(index_level_names) == 1 else None
-                reconstructed_index = pd.Index(processed_index_tuples, name=idx_name)
+        # This correctly reconstructs the DataFrame from the API response
+        df_display = pd.DataFrame(data=data_from_json, index=index_from_json, columns=columns_from_json)
         
-        df_display = pd.DataFrame(data=data_from_json, index=reconstructed_index, columns=columns_from_json)
+        # This check prevents the error by only setting index names if they are provided
+        if index_level_names is not None:
+            df_display.index.names = index_level_names
+
+        # This part fixes the Arrow serialization warning from your terminal
+        for col in df_display.columns:
+            if df_display[col].dtype == 'object':
+                df_display[col] = df_display[col].astype(str)
+
+        # Display the final, corrected DataFrame
         st.dataframe(df_display)
         st.success(success_message)
+
     except Exception as e: 
         st.error(f"Error displaying DataFrame for '{success_message}': {e}")
         traceback.print_exc()
-
-# --- Session State Initialization ---
-# In dashboard.py
 
 # --- Session State Initialization ---
 if 'app_initialized' not in st.session_state:
     st.session_state.app_initialized = True
     st.session_state.active_dataset = "diamonds"
     
-    # Define all keys that need to be initialized once per session
-    keys_to_init = [
-        # For descriptive stats toggles
-        "show_numerical_summary", "show_categorical_summary", "show_unique_counts", 
-        "show_dataset_info", "show_frequency_table_section", 
-        "show_crosstab_section", "show_filtered_data_view",
-        
-        # Keys for the global filter multiselect widgets
-        "dashboard_include_cols", 
-        "dashboard_exclude_cols",
-
-        # Key for the Data Explorer filter
-        "view_column_selector",
-        
-        # A flag to safely handle the Reset button
-        "reset_filters_flag"
-    ]
+    # Initialize all UI visibility toggles to False
+    st.session_state.show_numerical_summary = False
+    st.session_state.show_categorical_summary = False
+    st.session_state.show_unique_counts = False
+    st.session_state.show_dataset_info = False
+    st.session_state.show_frequency_table_section = False
+    st.session_state.show_crosstab_section = False
     
-    # This single loop initializes every key to its correct default type
-    for key in keys_to_init:
-        if key not in st.session_state:
-            # If the key name suggests it's for a list of columns, initialize as an empty list []
-            if "cols" in key or "selector" in key:
-                st.session_state[key] = []
-            # Otherwise, initialize as False (for buttons and flags)
-            else:
-                st.session_state[key] = False
+    # Initialize the states for the filter widgets as empty lists
+    st.session_state.dashboard_include_cols = []
+    st.session_state.dashboard_exclude_cols = []
     
     st.rerun()
-
 # --- Data-Dependent State ---
 column_data = get_column_data_from_api() 
 if column_data:
@@ -126,7 +119,7 @@ st.sidebar.title("Controls & Options")
 
 # In your dashboard.py file
 
-with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=False):
+with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=True):
     selection_mode = st.radio(
         "Filter columns by:",
         ["Excluding selected columns", "Including selected columns"],
@@ -178,7 +171,7 @@ if available_datasets:
                 response = requests.post(f"{FASTAPI_BASE_URL}/datasets/select/{selected_dataset}")
                 response.raise_for_status()
                 new_active_dataset = selected_dataset
-                protected_keys = ['app_initialized'] 
+                protected_keys = ['app_initialized', 'column_selection_mode'] 
                 for key in list(st.session_state.keys()):
                     if key not in protected_keys:
                         del st.session_state[key]
