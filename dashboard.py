@@ -50,7 +50,7 @@ def display_df_from_api_split_response(
         index_from_json = response_data_split['index']
         columns_from_json = response_data_split['columns']
         data_from_json = response_data_split['data']
-
+        
         reconstructed_index = None
         if index_from_json: 
             processed_index_tuples = [tuple(item) if isinstance(item, list) else item for item in index_from_json]
@@ -68,17 +68,41 @@ def display_df_from_api_split_response(
         traceback.print_exc()
 
 # --- Session State Initialization ---
+# In dashboard.py
+
+# --- Session State Initialization ---
 if 'app_initialized' not in st.session_state:
     st.session_state.app_initialized = True
     st.session_state.active_dataset = "diamonds"
     
+    # Define all keys that need to be initialized once per session
     keys_to_init = [
+        # For descriptive stats toggles
         "show_numerical_summary", "show_categorical_summary", "show_unique_counts", 
-        "show_dataset_info", "show_frequency_table_section", "show_crosstab_section"
+        "show_dataset_info", "show_frequency_table_section", 
+        "show_crosstab_section", "show_filtered_data_view",
+        
+        # Keys for the global filter multiselect widgets
+        "dashboard_include_cols", 
+        "dashboard_exclude_cols",
+
+        # Key for the Data Explorer filter
+        "view_column_selector",
+        
+        # A flag to safely handle the Reset button
+        "reset_filters_flag"
     ]
+    
+    # This single loop initializes every key to its correct default type
     for key in keys_to_init:
         if key not in st.session_state:
-            st.session_state[key] = False
+            # If the key name suggests it's for a list of columns, initialize as an empty list []
+            if "cols" in key or "selector" in key:
+                st.session_state[key] = []
+            # Otherwise, initialize as False (for buttons and flags)
+            else:
+                st.session_state[key] = False
+    
     st.rerun()
 
 # --- Data-Dependent State ---
@@ -94,24 +118,50 @@ all_columns: List[str] = st.session_state.get('all_columns', [])
 numerical_cols: List[str] = st.session_state.get('numerical_cols', [])
 categorical_cols: List[str] = st.session_state.get('categorical_cols', [])
 
-
 # --- Sidebar UI ---
 st.sidebar.title("Controls & Options")
-with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=True):
+
+# In dashboard.py, inside the sidebar
+# In dashboard.py
+
+# In your dashboard.py file
+
+with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=False):
     selection_mode = st.radio(
         "Filter columns by:",
-        ["Including selected", "Excluding selected"],
-        key="column_selection_mode"
+        ["Excluding selected columns", "Including selected columns"],
+        key="column_selection_mode",
+        index=0 
     )
-    if selection_mode == "Including selected":
-        st.caption("Choose columns to use for all plots and statistics.")
-        include_cols = st.multiselect("Columns to Include:", options=all_columns, key="dashboard_include_cols")
-        exclude_cols = []
-    else:
-        st.caption("All columns are used by default. Choose any to remove.")
-        exclude_cols = st.multiselect("Columns to Exclude:", options=all_columns, key="dashboard_exclude_cols")
-        include_cols = []
 
+    if selection_mode == "Including selected columns":
+        st.caption("Choose the specific columns to use for all plots and statistics.")
+        include_cols = st.multiselect(
+            "Columns to Include:", 
+            options=all_columns, 
+            key="dashboard_include_cols"
+        )
+        exclude_cols = []
+    
+    else: # Excluding selected columns
+        st.caption("All columns are included by default. Choose any to remove from the list.")
+        # This multiselect's state is controlled by the key "dashboard_exclude_mode_selector"
+        # and its output is the list of columns the user wants to KEEP.
+        include_cols = st.multiselect(
+            "Visible Columns:", 
+            options=all_columns, 
+            default=all_columns,
+            key="dashboard_exclude_mode_selector" 
+        )
+        exclude_cols = [col for col in all_columns if col not in include_cols]
+
+    # --- This callback function is now corrected ---
+    def reset_column_filters():
+        # It now clears the state for the correct widget keys
+        st.session_state.dashboard_include_cols = []
+        st.session_state.dashboard_exclude_mode_selector = all_columns # <<< This was the line with the typo
+    
+    st.button("Reset Column Filters", on_click=reset_column_filters)
 # --- Main Page Content ---
 st.markdown("### Select a Dataset")
 available_datasets = get_available_datasets()
@@ -159,8 +209,8 @@ with tab_plots:
         st.subheader("1. Select Plot Type and Axes")
         plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap"]
         selected_plot_type = st.selectbox("Plot Type:", plot_types_available, key="plot_type_select")
-        plot_params = {}
         
+        plot_params = {}
         primary_col_options = {
             "kde": effective_numerical_cols,
             "count_plot": effective_categorical_cols,
@@ -185,6 +235,7 @@ with tab_plots:
         st.subheader("2. Adjust Plot-Specific Options")
         
         palette_options = [None, 'pastel', 'husl', 'Set2', 'flare', 'viridis', 'mako']
+
         if selected_plot_type == "histogram":
             is_numeric = bool(plot_params.get('col_name') and plot_params.get('col_name') in effective_numerical_cols)
             plot_params['bins'] = st.slider("Bins:", 10, 100, 30, key="hist_bins")
@@ -193,7 +244,7 @@ with tab_plots:
                 if plot_params.get('kde'):
                     plot_params['kde_line_color'] = st.color_picker("KDE Line Color:", "#FF5733", key="hist_kde_color")
             plot_params['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color")
-            plot_params['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], key="hist_stat", help="The aggregate statistic for each bin.")
+            plot_params['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], key="hist_stat", help="The aggregate statistic for each bar.")
         
         elif selected_plot_type == "kde":
             plot_params['fill'] = st.checkbox("Fill KDE plot?", value=True, key="kde_fill")
@@ -240,9 +291,10 @@ with tab_plots:
                     final_plot_params[bool_key] = False
             
             dynamic_plot_config = [{"type": selected_plot_type, "params": final_plot_params}]
+            query_params_plots = {"include_columns": include_cols, "exclude_columns": exclude_cols}
             try:
                 with st.spinner(f"Generating {selected_plot_type}..."):
-                    response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=dynamic_plot_config, params={"include_columns": include_cols, "exclude_columns": exclude_cols}) 
+                    response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=dynamic_plot_config, params=query_params_plots) 
                     response.raise_for_status()
                     st.image(response.content, caption=f"Generated {selected_plot_type}", use_column_width=True)
             except Exception as e:
@@ -276,39 +328,42 @@ with tab_descriptive_stats:
         if st.session_state.get(state_var, False):
             endpoint_url = f"{FASTAPI_BASE_URL}/descriptive/{config['endpoint']}"
             try:
+                # Sections with their own UI and "Generate" button
                 if title == "Frequency Table":
                     if not categorical_cols: st.info("No categorical columns available.")
                     else:
-                        selected_col_freq = st.selectbox("Select column:", categorical_cols, key="freq_table_col_select")
+                        selected_col_freq = st.selectbox("Select column:", effective_categorical_cols, key="freq_table_col_select")
                         if st.button("Generate Frequency Table", key="btn_gen_freq_table"):
                             api_params = query_params_for_desc_tab.copy()
                             api_params["column_name"] = selected_col_freq
-                            with st.spinner(f"Fetching {title}..."):
+                            with st.spinner("Fetching..."):
                                 response = requests.get(endpoint_url, params=api_params)
                                 response.raise_for_status()
-                                display_df_from_api_split_response(response.json(), f"Table for '{selected_col_freq}'.", index_level_names=[selected_col_freq])
+                                display_df_from_api_split_response(response.json(), f"Table for '{selected_col_freq}'.")
                 
                 elif title == "Cross-Tabulations":
                     if not categorical_cols: st.info("No categorical columns available.")
                     else:
-                        index_cols = st.multiselect("Index Column(s):", categorical_cols, key="crosstab_index")
-                        column_cols = st.multiselect("Column(s):", categorical_cols, key="crosstab_columns")
+                        index_cols = st.multiselect("Index Column(s):", effective_categorical_cols, key="crosstab_index")
+                        column_cols = st.multiselect("Column(s):", effective_categorical_cols, key="crosstab_columns")
                         normalize = st.checkbox("Normalize?", key="crosstab_normalize")
                         margins = st.checkbox("Show Margins?", key="crosstab_margins")
                         if st.button("Generate Cross-Tabulation", key="btn_gen_crosstab_table"):
                             if not index_cols or not column_cols: st.warning("Please select at least one index AND one column.")
                             else:
                                 payload = {"index_names": index_cols, "column_names": column_cols, "normalize": normalize, "margins": margins}
-                                with st.spinner(f"Generating {title}..."):
+                                with st.spinner("Generating..."):
                                     response = requests.post(endpoint_url, json=payload, params=query_params_for_desc_tab)
                                     response.raise_for_status() 
                                     display_df_from_api_split_response(response.json(), "Crosstab loaded.", index_level_names=index_cols)
                 
+                # Sections that load automatically when shown
                 else: 
                     with st.spinner(f"Fetching {title}..."):
                         response = requests.get(endpoint_url, params=query_params_for_desc_tab)
                     response.raise_for_status()
                     response_data = response.json()
+                    
                     response_type = config.get("response_type")
                     if response_type == "split_df": display_df_from_api_split_response(response_data, f"{title}.")
                     elif response_type == "json_counts": st.json(response_data.get("counts", {}))
