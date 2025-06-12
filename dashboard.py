@@ -36,11 +36,6 @@ def get_available_datasets() -> List[str]:
         st.error(f"Could not fetch dataset list from API: {e}")
         return []
 
-# In dashboard.py
-
-# In dashboard.py
-
-# In dashboard.py
 
 def display_df_from_api_split_response(
     response_data_split: Dict[str, Any], 
@@ -96,6 +91,8 @@ if 'app_initialized' not in st.session_state:
     # Initialize the states for the filter widgets as empty lists
     st.session_state.dashboard_include_cols = []
     st.session_state.dashboard_exclude_cols = []
+
+    st.session_state.saved_plot_configs = []
     
     st.rerun()
 # --- Data-Dependent State ---
@@ -132,7 +129,8 @@ with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=Tru
         include_cols = st.multiselect(
             "Columns to Include:", 
             options=all_columns, 
-            key="dashboard_include_cols"
+            key="dashboard_include_cols",
+            default= [],
         )
         exclude_cols = []
     
@@ -140,13 +138,15 @@ with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=Tru
         st.caption("All columns are included by default. Choose any to remove from the list.")
         # This multiselect's state is controlled by the key "dashboard_exclude_mode_selector"
         # and its output is the list of columns the user wants to KEEP.
-        include_cols = st.multiselect(
+        kept_cols = st.multiselect(
             "Visible Columns:", 
             options=all_columns, 
             default=all_columns,
             key="dashboard_exclude_mode_selector" 
         )
-        exclude_cols = [col for col in all_columns if col not in include_cols]
+        include_cols = kept_cols
+        exclude_cols = [col for col in all_columns if col not in kept_cols]
+        
 
     # --- This callback function is now corrected ---
     def reset_column_filters():
