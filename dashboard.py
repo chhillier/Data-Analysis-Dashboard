@@ -101,12 +101,16 @@ if column_data:
     st.session_state.all_columns = column_data.get("all_columns", [])
     st.session_state.numerical_cols = column_data.get("numerical_columns", [])
     st.session_state.categorical_cols = column_data.get("categorical_columns", [])
+
 else: 
     st.session_state.all_columns, st.session_state.numerical_cols, st.session_state.categorical_cols = [], [], []
 
 all_columns: List[str] = st.session_state.get('all_columns', [])
 numerical_cols: List[str] = st.session_state.get('numerical_cols', [])
 categorical_cols: List[str] = st.session_state.get('categorical_cols', [])
+
+if 'dashboard_exclude_mode_selector' not in st.session_state:
+    st.session_state.dashboard_exclude_mode_selector = all_columns
 
 # --- Sidebar UI ---
 st.sidebar.title("Controls & Options")
@@ -141,7 +145,7 @@ with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=Tru
         kept_cols = st.multiselect(
             "Visible Columns:", 
             options=all_columns, 
-            default=all_columns,
+            #default=all_columns,
             key="dashboard_exclude_mode_selector" 
         )
         include_cols = kept_cols

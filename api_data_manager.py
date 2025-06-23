@@ -35,19 +35,15 @@ def discover_datasets() -> Dict[str, Path]:
         print(f"Discovered root CSV: '{dataset_name_key}' at {f_path}")
 
     # 2. Scan for CSVs in specified subfolders
-    subfolders_to_scan = ["student", "bank-additional"]
-    for subfolder in subfolders_to_scan:
-        data_sub_dir = DATASETS_DIR / subfolder
-        if data_sub_dir.is_dir():
+    # 2. Scan for CSVs in all immediate subfolders
+    for data_sub_dir in DATASETS_DIR.iterdir():
+        if data_sub_dir.is_dir(): # Ensure it's a directory
+            subfolder_name = data_sub_dir.name
             for f_path in data_sub_dir.glob("*.csv"):
-                # Key is based on filename, e.g., 'student-mat.csv' -> 'student_mat'
+                # ... the rest of your logic for naming keys remains the same ...
                 dataset_name_key = f_path.stem.lower().replace('-', '_').replace(' ', '_')
-                
-                # In case of a name collision (e.g., 'data.csv' in root and in subfolder),
-                # prepend the folder name to the key to make it unique.
                 if dataset_name_key in available_files:
-                    dataset_name_key = f"{subfolder.replace('-', '_')}_{dataset_name_key}"
-
+                    dataset_name_key = f"{subfolder_name.replace('-', '_')}_{dataset_name_key}"
                 available_files[dataset_name_key] = f_path
                 print(f"Discovered subfolder CSV: '{dataset_name_key}' at {f_path}")
     

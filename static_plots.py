@@ -407,155 +407,155 @@ class StaticPlots(Descriptive):
         ax.tick_params(axis='x', rotation=45)
         return ax
         
-    def subplots(self, plot_configs, nrows=None, ncols=None, figsize=(12, 8), main_title="Data Exploration Subplots"):
-        """
-        Creates a figure with subplots based on a list of plot configurations.
+#     def subplots(self, plot_configs, nrows=None, ncols=None, figsize=(12, 8), main_title="Data Exploration Subplots"):
+#         """
+#         Creates a figure with subplots based on a list of plot configurations.
 
-        Args:
-            plot_configs (list): List of dicts. Each dict needs:
-                                 'type': str ('histogram', 'kde', 'scatter', etc.)
-                                 'params': dict (parameters for the plot function,
-                                           excluding 'ax' which is handled internally)
-            nrows (int, optional): Number of rows. Auto-calculated if None.
-            ncols (int, optional): Number of columns. Auto-calculated if None.
-            figsize (tuple): Size of the entire figure.
-            main_title (str): Title for the entire figure.
-        """
-        num_plots = len(plot_configs)
-        if num_plots == 0:
-            print("Warning: No plot configurations provided.")
-            return
+#         Args:
+#             plot_configs (list): List of dicts. Each dict needs:
+#                                  'type': str ('histogram', 'kde', 'scatter', etc.)
+#                                  'params': dict (parameters for the plot function,
+#                                            excluding 'ax' which is handled internally)
+#             nrows (int, optional): Number of rows. Auto-calculated if None.
+#             ncols (int, optional): Number of columns. Auto-calculated if None.
+#             figsize (tuple): Size of the entire figure.
+#             main_title (str): Title for the entire figure.
+#         """
+#         num_plots = len(plot_configs)
+#         if num_plots == 0:
+#             print("Warning: No plot configurations provided.")
+#             return
 
-        # --- Determine grid size ---
-        if nrows is None and ncols is None:
-            # Auto-calculate a squarish grid
-            ncols = math.ceil(math.sqrt(num_plots))
-            nrows = math.ceil(num_plots / ncols)
-        elif nrows is None:
-            nrows = math.ceil(num_plots / ncols)
-        elif ncols is None:
-            ncols = math.ceil(num_plots / nrows)
+#         # --- Determine grid size ---
+#         if nrows is None and ncols is None:
+#             # Auto-calculate a squarish grid
+#             ncols = math.ceil(math.sqrt(num_plots))
+#             nrows = math.ceil(num_plots / ncols)
+#         elif nrows is None:
+#             nrows = math.ceil(num_plots / ncols)
+#         elif ncols is None:
+#             ncols = math.ceil(num_plots / nrows)
 
-        if num_plots > nrows * ncols:
-             print(f"Warning: Grid size ({nrows}x{ncols}) is too small for {num_plots} plots. Some plots may be omitted or grid might be suboptimal.")
-             # Adjust grid to fit all plots? For now, we proceed and rely on index checks.
-             # ncols = math.ceil(num_plots / nrows) # Example adjustment if nrows is fixed
+#         if num_plots > nrows * ncols:
+#              print(f"Warning: Grid size ({nrows}x{ncols}) is too small for {num_plots} plots. Some plots may be omitted or grid might be suboptimal.")
+#              # Adjust grid to fit all plots? For now, we proceed and rely on index checks.
+#              # ncols = math.ceil(num_plots / nrows) # Example adjustment if nrows is fixed
 
-        # --- Create Figure and Axes ---
-        # squeeze=False ensures axes is always a 2D numpy array, even if 1x1, 1xN, Nx1
-        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize, squeeze=False)
+#         # --- Create Figure and Axes ---
+#         # squeeze=False ensures axes is always a 2D numpy array, even if 1x1, 1xN, Nx1
+#         fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize, squeeze=False)
 
-        # Flatten axes array for easy sequential access
-        axes_flat = axes.flatten()
+#         # Flatten axes array for easy sequential access
+#         axes_flat = axes.flatten()
 
-        # --- Map plot types to methods ---
-        plot_methods = {
-            'histogram': self.histogram,
-            'kde': self.kde,
-            'scatter': self.scatter,
-            'crosstab_heatmap': self.crosstab_heatmap,
-            'bar_chart': self.bar_chart,
-            'count_plot': self.count_plot
-            # Add more plot types and corresponding methods here
-        }
+#         # --- Map plot types to methods ---
+#         plot_methods = {
+#             'histogram': self.histogram,
+#             'kde': self.kde,
+#             'scatter': self.scatter,
+#             'crosstab_heatmap': self.crosstab_heatmap,
+#             'bar_chart': self.bar_chart,
+#             'count_plot': self.count_plot
+#             # Add more plot types and corresponding methods here
+#         }
 
-        # --- Iterate through configs and plot ---
-        for i, config in enumerate(plot_configs):
-            if i >= len(axes_flat):
-                print(f"Warning: Ran out of subplot axes. Skipping config {i+1}: {config}")
-                break # Stop if we have more plots than axes
+#         # --- Iterate through configs and plot ---
+#         for i, config in enumerate(plot_configs):
+#             if i >= len(axes_flat):
+#                 print(f"Warning: Ran out of subplot axes. Skipping config {i+1}: {config}")
+#                 break # Stop if we have more plots than axes
 
-            current_ax = axes_flat[i]
-            plot_type = config.get('type')
-            params = config.get('params', {})
+#             current_ax = axes_flat[i]
+#             plot_type = config.get('type')
+#             params = config.get('params', {})
 
-            if plot_type in plot_methods:
-                plot_func = plot_methods[plot_type]
-                try:
-                    # Call the appropriate plotting method with the current axis
-                    # and unpack the parameters from the config dictionary
-                    plot_func(ax=current_ax, **params)
-                except Exception as e:
-                    print(f"Error plotting '{plot_type}' with params {params} on axis {i}: {e}")
-                    current_ax.set_title(f"Plotting Error!") # Show error on the subplot
-            else:
-                print(f"Warning: Unknown plot type '{plot_type}' in config {i+1}. Skipping.")
-                current_ax.set_title(f"Unknown type: {plot_type}")
+#             if plot_type in plot_methods:
+#                 plot_func = plot_methods[plot_type]
+#                 try:
+#                     # Call the appropriate plotting method with the current axis
+#                     # and unpack the parameters from the config dictionary
+#                     plot_func(ax=current_ax, **params)
+#                 except Exception as e:
+#                     print(f"Error plotting '{plot_type}' with params {params} on axis {i}: {e}")
+#                     current_ax.set_title(f"Plotting Error!") # Show error on the subplot
+#             else:
+#                 print(f"Warning: Unknown plot type '{plot_type}' in config {i+1}. Skipping.")
+#                 current_ax.set_title(f"Unknown type: {plot_type}")
 
-        # --- Clean up and Display ---
-        # Hide any unused axes in the grid
-        for j in range(i + 1, len(axes_flat)):
-            axes_flat[j].set_visible(False)
+#         # --- Clean up and Display ---
+#         # Hide any unused axes in the grid
+#         for j in range(i + 1, len(axes_flat)):
+#             axes_flat[j].set_visible(False)
 
-        if main_title:
-            fig.suptitle(main_title, fontsize=16, y=1.0) # Adjust y based on layout
+#         if main_title:
+#             fig.suptitle(main_title, fontsize=16, y=1.0) # Adjust y based on layout
 
-        # Adjust layout - rect helps prevent suptitle overlapping axes titles
-        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
-        plt.show()
+#         # Adjust layout - rect helps prevent suptitle overlapping axes titles
+#         plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+#         plt.show()
 
 
 
-if __name__ == "__main__":
-    from api_data_manager import CSVDataManager
-    instance_of_data = CSVDataManager(file_path="datasets/diamonds.csv")
-    instance_of_data.load_and_prepare_data()
-    df = instance_of_data.get_processed_df()
-    plots = StaticPlots(data_df=df)
+# if __name__ == "__main__":
+#     from api_data_manager import CSVDataManager
+#     instance_of_data = CSVDataManager(file_path="datasets/diamonds.csv")
+#     instance_of_data.load_and_prepare_data()
+#     df = instance_of_data.get_processed_df()
+#     plots = StaticPlots(data_df=df)
 
-    # --- DATA INSPECTION FOR 'cut' COLUMN (using your 'df' variable) ---
-    print("\n--- DATA INSPECTION FOR 'cut' COLUMN ---")
-    if 'cut' in df.columns: # Using your 'df'
-        print(f"Data type of 'cut': {df['cut'].dtype}")
-        print(f"First 5 values of 'cut':\n{df['cut'].head().to_string()}")
-        print(f"Value counts for 'cut' (includes NaNs if any):\n{df['cut'].value_counts(dropna=False).to_string()}")
-        print(f"Number of NaNs in 'cut': {df['cut'].isnull().sum()}")
-        print(f"Total non-NaN values in 'cut': {df['cut'].count()}")
-        print(f"Is the 'cut' column (non-NaN) empty? {df['cut'].dropna().empty}")
-        print(f"Shape of the entire DataFrame: {df.shape}")
-    else:
-        print("Error: 'cut' column not found in the DataFrame!")
-    print("--- END OF DATA INSPECTION ---\n")
+#     # --- DATA INSPECTION FOR 'cut' COLUMN (using your 'df' variable) ---
+#     print("\n--- DATA INSPECTION FOR 'cut' COLUMN ---")
+#     if 'cut' in df.columns: # Using your 'df'
+#         print(f"Data type of 'cut': {df['cut'].dtype}")
+#         print(f"First 5 values of 'cut':\n{df['cut'].head().to_string()}")
+#         print(f"Value counts for 'cut' (includes NaNs if any):\n{df['cut'].value_counts(dropna=False).to_string()}")
+#         print(f"Number of NaNs in 'cut': {df['cut'].isnull().sum()}")
+#         print(f"Total non-NaN values in 'cut': {df['cut'].count()}")
+#         print(f"Is the 'cut' column (non-NaN) empty? {df['cut'].dropna().empty}")
+#         print(f"Shape of the entire DataFrame: {df.shape}")
+#     else:
+#         print("Error: 'cut' column not found in the DataFrame!")
+#     print("--- END OF DATA INSPECTION ---\n")
 
-    plot_configurations = [
-    {
-        'type': 'histogram',
-        'params': {'col_name': 'carat', 'color': 'teal', 'bins': 30}
-    },
-    {
-        'type': 'kde',
-        'params': {'col_name': 'price', 'hue_col':'cut'}
-    },
-    {
-        'type': 'scatter',
-        'params': {'col_name_x': 'carat', 'col_name_y': 'price', 'color': 'darkorange', 'alpha': 0.1} # Low alpha for dense scatter
-    },
+#     plot_configurations = [
+#     {
+#         'type': 'histogram',
+#         'params': {'col_name': 'carat', 'color': 'teal', 'bins': 30}
+#     },
+#     {
+#         'type': 'kde',
+#         'params': {'col_name': 'price', 'hue_col':'cut'}
+#     },
+#     {
+#         'type': 'scatter',
+#         'params': {'col_name_x': 'carat', 'col_name_y': 'price', 'color': 'darkorange', 'alpha': 0.1} # Low alpha for dense scatter
+#     },
 
-    {
-            'type': 'crosstab_heatmap',  # Your new plot type
-            'params': {
-                'index_names_ct': ['cut'],                # Params for self.cross_tabs
-                'column_names_ct': ['clarity', 'color'], # Params for self.cross_tabs
-                'annot': False,                           # Param for sns.heatmap
-                'fmt': 'd',                              # Param for sns.heatmap
-                'annot_kws':{'size':7}                       # Param for sns.heatmap
-                # You can add other heatmap_kwargs here, e.g., linewidths=0.5
-        },
-    },
-    # For a bar chart of mean price by cut:
-    {
-        'type': 'bar_chart',
-        'params': {'x_col': 'cut', 'y_col': 'price', 'estimator': 'mean', 'hue_col': 'color'}
-    },
-    # For a count plot of cut:
-    {
-        'type': 'count_plot',
-        'params': {'x_col': 'cut'} # y_col is None by default
-    },
-    # Add more plot dictionaries here for more subplots
-    ]
-    plots.subplots(plot_configurations,
-                   figsize=(18,10))
+#     {
+#             'type': 'crosstab_heatmap',  # Your new plot type
+#             'params': {
+#                 'index_names_ct': ['cut'],                # Params for self.cross_tabs
+#                 'column_names_ct': ['clarity', 'color'], # Params for self.cross_tabs
+#                 'annot': False,                           # Param for sns.heatmap
+#                 'fmt': 'd',                              # Param for sns.heatmap
+#                 'annot_kws':{'size':7}                       # Param for sns.heatmap
+#                 # You can add other heatmap_kwargs here, e.g., linewidths=0.5
+#         },
+#     },
+#     # For a bar chart of mean price by cut:
+#     {
+#         'type': 'bar_chart',
+#         'params': {'x_col': 'cut', 'y_col': 'price', 'estimator': 'mean', 'hue_col': 'color'}
+#     },
+#     # For a count plot of cut:
+#     {
+#         'type': 'count_plot',
+#         'params': {'x_col': 'cut'} # y_col is None by default
+#     },
+#     # Add more plot dictionaries here for more subplots
+#     ]
+#     plots.subplots(plot_configurations,
+#                    figsize=(18,10))
 
-    plt.show()
+#     plt.show()
 
