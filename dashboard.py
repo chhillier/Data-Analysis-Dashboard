@@ -115,10 +115,17 @@ if 'dashboard_exclude_mode_selector' not in st.session_state:
 # --- Sidebar UI ---
 st.sidebar.title("Controls & Options")
 
-# In dashboard.py, inside the sidebar
-# In dashboard.py
+st.sidebar.markdown("---")
+st.sidebar.subheader("My Custom Dashboard")
+num_saved_plots = len(st.session_state.get('saved_plot_configs', []))
+st.sidebar.metric("Saved Plots", num_saved_plots)
 
-# In your dashboard.py file
+if num_saved_plots > 0:
+    if st.sidebar.button("Clear Saved Plots"):
+        st.session_state.saved_plot_configs = []
+        st.rerun()
+
+st.sidebar.markdown("---")
 
 with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=True):
     selection_mode = st.radio(
@@ -159,6 +166,8 @@ with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=Tru
         st.session_state.dashboard_exclude_mode_selector = all_columns # <<< This was the line with the typo
     
     st.button("Reset Column Filters", on_click=reset_column_filters)
+
+
 # --- Main Page Content ---
 st.markdown("### Select a Dataset")
 available_datasets = get_available_datasets()
@@ -202,6 +211,25 @@ effective_numerical_cols = [col for col in numerical_cols if col in effective_co
 
 with tab_plots:
     st.header("Plot Generation")
+    st.markdown("---")
+    st.subheader("My Custom Dashboard")
+    num_saved_plots = len(st.session_state.get('saved_plot_configs', []))
+
+    if num_saved_plots ==0:
+        st.info("You haven't saved any plots yet. Configure and generate a plot below. Then click 'Add Plot to My Dashboard' to save it.")
+    else:
+        st.success(f"You have {num_saved_plots} plot(s) saved.")
+        if st.button("Generate My Custom Dashboard"):
+            with st.spinner("Generating you custom dashboard... Please wait."):
+                try:
+                    payload = st.session_state.saved_plot_configs
+                    response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=payload)
+                    response.raise_for_status()
+                    st.image(response.content, caption="Your Custom Generated Dashboard", use_column_width=True)
+
+                except Exception as e:
+                    st.error(f"Failed to generate custom dashboard. API Error: {e}")
+        st.markdown()
     with st.expander("Configure Plot", expanded=True):
         st.subheader("1. Select Plot Type and Axes")
         plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap"]
@@ -294,6 +322,16 @@ with tab_plots:
                     response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=dynamic_plot_config, params=query_params_plots) 
                     response.raise_for_status()
                     st.image(response.content, caption=f"Generated {selected_plot_type}", use_column_width=True)
+                    st.markdown("---")
+                    config_str = str(dynamic_plot_config[0])
+                    add_button_key = f"add_plot_{hash(config_str)}"
+                    if st.button("Add Plot to My Dashboard", key = add_button_key):
+                        if dynamic_plot_config[0] not in st.session_state.saved_plot_configs:
+                            st.session_state.saved_plot_configs.append(dynamic_plot_config[0])
+                            st.success(f"'{selected_plot_type}' plot configuration saved!")
+                        else:
+                            st.warning("This exact plot configuration is already saved.")
+
             except Exception as e:
                 st.error(f"Failed to generate plot. API Error: {e}")
         else: 
