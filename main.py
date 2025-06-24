@@ -133,13 +133,9 @@ async def get_categorical_summary_endpoint(df: pd.DataFrame = Depends(get_datafr
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# In main.py
-
-### START: REPLACE THIS ENTIRE FUNCTION ###
 @app.get("/api/descriptive/frequency-table", tags=[TAG_DESCRIPTIVE], response_model=Optional[schemas.DataFrameSplitResponse])
 async def get_frequency_table_endpoint(
     column_name: str = Query(..., description="The categorical column name for the frequency table."),
-    # ADD these two lines to accept the parameters from the request URL
     include_columns: Optional[List[str]] = Query(None),
     exclude_columns: Optional[List[str]] = Query(None),
     df: pd.DataFrame = Depends(get_dataframe_dependency)
@@ -149,7 +145,6 @@ async def get_frequency_table_endpoint(
         table_dict = desc_api.handle_frequency_table(
             base_df=df,
             column_name=column_name,
-            # Now these variables are defined and can be passed
             include_columns=include_columns,
             exclude_columns=exclude_columns
         )
@@ -161,14 +156,10 @@ async def get_frequency_table_endpoint(
     except Exception as e:
         print(f"Error in frequency-table endpoint: {e}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
-### END: REPLACE THIS ENTIRE FUNCTION ###
-# In main.py
 
-### START: REPLACE THIS ENTIRE FUNCTION ###
 @app.post("/api/descriptive/cross-tabs", tags=[TAG_DESCRIPTIVE], response_model=Optional[schemas.DataFrameSplitResponse])
 async def post_cross_tabs_endpoint(
     payload: schemas.CrossTabRequest, 
-    # ADD these two lines to accept the parameters from the request URL
     include_columns: Optional[List[str]] = Query(None),
     exclude_columns: Optional[List[str]] = Query(None),
     df: pd.DataFrame = Depends(get_dataframe_dependency)
@@ -193,7 +184,6 @@ async def post_cross_tabs_endpoint(
     except Exception as e:
         print(f"Error in cross-tabs endpoint: {e}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
-### END: REPLACE THIS ENTIRE FUNCTION ###@app.post("/api/descriptive/filter", tags=[TAG_DESCRIPTIVE], response_model=Optional[schemas.DataFrameRecordsResponse])
 async def post_filter_data_endpoint(payload: schemas.FilterConditionRequest, df: pd.DataFrame = Depends(get_dataframe_dependency)):
     try:
         result_records = desc_api.handle_get_data_filter(

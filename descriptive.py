@@ -83,18 +83,7 @@ class Descriptive:
         crosstab_params.update(kwargs) 
         table = pd.crosstab(index=self.data[column_name], **crosstab_params)
         return table
-    # def cross_tabs(self, index_names:list, columns_names:list, normalize = False, margins=False, **kwargs):
-    #     cat_data = self.categorical_data()
-    #     prepared_indexes = [cat_data[name] for name in index_names]
-    #     prepared_columns = [cat_data[name] for name in columns_names]
-    #     cross_tab_table = pd.crosstab(
-    #         index=prepared_indexes,
-    #         columns=prepared_columns,
-    #         normalize=normalize,
-    #         margins=margins
-    #     )
-    #     return cross_tab_table
-    # In original_descriptive.py, inside the Descriptive class
+
     def cross_tabs(self, index_names:list, columns_names:list, normalize = False, margins=False, **kwargs):
         cat_data = self.categorical_data()
 
@@ -150,11 +139,6 @@ class Diamonds(Descriptive):
         return self.data
 
 
-
-# In original_descriptive.py
-
-# ... (your Descriptive and Diamonds class definitions above) ...
-
 if __name__=="__main__":
     pd.set_option('display.max_columns', None)
     pd.set_option('display.max_rows', 100)
@@ -171,22 +155,14 @@ if __name__=="__main__":
     print("\nNumerical Describe:")
     print(diamonds_instance.numerical_describe())
     print("\nData Info:")
-    # data_info() prints to stdout and returns None, so calling it directly is fine for testing.
-    # If you want to capture its string output here like the handler does:
-    # import io
-    # buffer = io.StringIO()
-    # diamonds_instance.data.info(buf=buffer)
-    # print(buffer.getvalue())
     diamonds_instance.data_info() 
 
     print("\n--- Testing single condition data_filter ---")
     print(diamonds_instance.data_filter('cut','Ideal').head()) # Show head to keep output manageable
 
     print("\n--- Performing feature engineering and saving CSV ---")
-    # Note: price_per_carat modifies diamonds_instance.data in-place
+
     df_engineered = diamonds_instance.price_per_carat() 
-    # It's better practice if methods that transform data return a new df
-    # or clearly document in-place modification. For now, this is fine.
     df_engineered["high_price"] = np.where(df_engineered['price_per_carat'] > 3500, 1, 0)
     
     def multiply(x):
@@ -195,8 +171,6 @@ if __name__=="__main__":
     df_engineered['price_per_carat_with taxes'] = df_engineered['price_per_carat'].apply(multiply)
     print("\nEngineered DataFrame head:")
     print(df_engineered.head())
-    # The df_engineered is the same object as diamonds_instance.data now.
-    # df_engineered.to_csv("diamonds.csv", index=False) # Ensure this uses the most up-to-date df
     diamonds_instance.data.to_csv("diamonds.csv", index=False) # Save the instance's data
     print("diamonds.csv saved.")
 
@@ -247,8 +221,6 @@ if __name__=="__main__":
             margins=False 
         )
         print("2x2 Crosstab (margins=False) successful. Shape:", crosstab_result_2x2_no_margins.shape)
-        # print("Head of 2x2 Crosstab (margins=False):")
-        # print(crosstab_result_2x2_no_margins.head()) # Optional: print part of the result
     except Exception as e:
         print(f"ERROR generating 2x2 crosstab (margins=False): {type(e).__name__} - {e}")
         import traceback

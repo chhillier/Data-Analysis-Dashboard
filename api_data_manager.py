@@ -182,7 +182,6 @@ class CSVDataManager(BaseDataManager):
 
         # Now, read the entire CSV file using the detected (or default) delimiter
         return pd.read_csv(self.file_path, sep=delimiter)
-    ### END: REPLACE THIS ENTIRE METHOD ###
 
 if __name__ == "__main__":
     print("\n--- Testing DataManager with Multiple Datasets ---")

@@ -93,7 +93,10 @@ if 'app_initialized' not in st.session_state:
     st.session_state.dashboard_exclude_cols = []
 
     st.session_state.saved_plot_configs = []
-    
+    st.session_state.last_generated_plot_config = None
+    st.session_state.last_generated_plot_image = None
+
+
     st.rerun()
 # --- Data-Dependent State ---
 column_data = get_column_data_from_api() 
@@ -127,44 +130,34 @@ if num_saved_plots > 0:
 
 st.sidebar.markdown("---")
 
+# --- REPLACEMENT FOR SIDEBAR EXPANDER ---
 with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=True):
     selection_mode = st.radio(
         "Filter columns by:",
         ["Excluding selected columns", "Including selected columns"],
         key="column_selection_mode",
-        index=0 
     )
 
     if selection_mode == "Including selected columns":
         st.caption("Choose the specific columns to use for all plots and statistics.")
-        include_cols = st.multiselect(
-            "Columns to Include:", 
-            options=all_columns, 
-            key="dashboard_include_cols",
-            default= [],
+        st.multiselect(
+            "Columns to Include:",
+            options=all_columns,
+            key="dashboard_include_cols",  # This widget just updates the state
         )
-        exclude_cols = []
-    
-    else: # Excluding selected columns
+    else:  # Excluding selected columns
         st.caption("All columns are included by default. Choose any to remove from the list.")
-        # This multiselect's state is controlled by the key "dashboard_exclude_mode_selector"
-        # and its output is the list of columns the user wants to KEEP.
-        kept_cols = st.multiselect(
-            "Visible Columns:", 
-            options=all_columns, 
-            #default=all_columns,
-            key="dashboard_exclude_mode_selector" 
+        st.multiselect(
+            "Visible Columns:",
+            options=all_columns,
+            key="dashboard_exclude_mode_selector",  # This widget just updates the state
         )
-        include_cols = kept_cols
-        exclude_cols = [col for col in all_columns if col not in kept_cols]
-        
 
-    # --- This callback function is now corrected ---
     def reset_column_filters():
-        # It now clears the state for the correct widget keys
         st.session_state.dashboard_include_cols = []
-        st.session_state.dashboard_exclude_mode_selector = all_columns # <<< This was the line with the typo
-    
+        st.session_state.dashboard_exclude_mode_selector = all_columns
+        # No change needed to the callback itself, it's correct.
+
     st.button("Reset Column Filters", on_click=reset_column_filters)
 
 
@@ -188,6 +181,9 @@ if available_datasets:
                 for key in list(st.session_state.keys()):
                     if key not in protected_keys:
                         del st.session_state[key]
+                st.session_state.saved_plot_configs = []
+                st.session_state.last_generated_plot_config = None
+                st.session_state.last_generated_plot_image = None
                 st.session_state.active_dataset = new_active_dataset
                 st.cache_data.clear()
                 st.rerun()
@@ -200,59 +196,69 @@ st.markdown("---")
 
 tab_plots, tab_descriptive_stats = st.tabs(["📊 Plot Dashboard", "🔢 Descriptive Statistics"])
 
-# Determine effective columns once, based on the single global sidebar filter
-effective_cols = list(all_columns)
-if include_cols:
-    effective_cols = [col for col in all_columns if col in include_cols]
-elif exclude_cols:
-    effective_cols = [col for col in all_columns if col not in exclude_cols]
+# --- REPLACEMENT FOR COLUMN CALCULATION LOGIC ---
+
+# Get the current mode from the session state
+selection_mode = st.session_state.get("column_selection_mode", "Excluding selected columns")
+
+# DEFINITIVELY set the include/exclude lists for the API calls
+if selection_mode == "Including selected columns":
+    include_cols = st.session_state.get('dashboard_include_cols', [])
+    exclude_cols = []
+else: # Excluding selected columns
+    # In this mode, the 'include_cols' are the ones the user has kept visible
+    include_cols = st.session_state.get('dashboard_exclude_mode_selector', all_columns)
+    exclude_cols = [col for col in all_columns if col not in include_cols]
+
+# Now, `effective_cols` is simply the same as `include_cols` in both modes
+effective_cols = include_cols
+
+# Finally, create the categorical and numerical lists from the correct effective_cols
 effective_categorical_cols = [col for col in categorical_cols if col in effective_cols]
 effective_numerical_cols = [col for col in numerical_cols if col in effective_cols]
-
 with tab_plots:
     st.header("Plot Generation")
+
+    # --- 1. CUSTOM DASHBOARD SECTION ---
     st.markdown("---")
     st.subheader("My Custom Dashboard")
     num_saved_plots = len(st.session_state.get('saved_plot_configs', []))
-
-    if num_saved_plots ==0:
-        st.info("You haven't saved any plots yet. Configure and generate a plot below. Then click 'Add Plot to My Dashboard' to save it.")
-    else:
+    
+    if num_saved_plots > 0:
         st.success(f"You have {num_saved_plots} plot(s) saved.")
-        if st.button("Generate My Custom Dashboard"):
-            with st.spinner("Generating you custom dashboard... Please wait."):
+    
+    # The button is always visible, but disabled if no plots are saved, as you requested.
+    if st.button("Generate My Custom Dashboard", disabled=(num_saved_plots == 0)):
+        if num_saved_plots > 0:
+            with st.spinner("Generating your custom dashboard... Please wait."):
                 try:
                     payload = st.session_state.saved_plot_configs
-                    response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=payload)
+                    # Use the include/exclude cols from the sidebar for the final dashboard
+                    query_params_plots = {"include_columns": include_cols, "exclude_columns": exclude_cols}
+                    response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=payload, params=query_params_plots)
                     response.raise_for_status()
                     st.image(response.content, caption="Your Custom Generated Dashboard", use_column_width=True)
-
                 except Exception as e:
                     st.error(f"Failed to generate custom dashboard. API Error: {e}")
-        st.markdown()
-    with st.expander("Configure Plot", expanded=True):
+
+    # --- 2. SINGLE PLOT CONFIGURATION EXPANDER ---
+    with st.expander("Configure and Generate a Single Plot", expanded=True):
         st.subheader("1. Select Plot Type and Axes")
         plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap"]
         selected_plot_type = st.selectbox("Plot Type:", plot_types_available, key="plot_type_select")
         
         plot_params = {}
-        primary_col_options = {
-            "kde": effective_numerical_cols,
-            "count_plot": effective_categorical_cols,
-            "bar_chart": effective_categorical_cols
-        }.get(selected_plot_type, effective_cols)
-
+        primary_col_options = {"kde": effective_numerical_cols, "count_plot": effective_categorical_cols, "bar_chart": effective_categorical_cols}.get(selected_plot_type, effective_cols)
+        
         if selected_plot_type != "crosstab_heatmap":
             x_selection = st.selectbox("Primary Column (x-axis):", [None] + primary_col_options, key="plot_param_x_axis")
             if selected_plot_type in ["bar_chart", "count_plot"]: plot_params['x_col'] = x_selection
             elif selected_plot_type == "scatter": plot_params['col_name_x'] = x_selection
             else: plot_params['col_name'] = x_selection
-
         if selected_plot_type in ["scatter", "bar_chart"]:
             y_selection = st.selectbox("Y-axis Column (numerical):", [None] + effective_numerical_cols, key="plot_param_y_axis")
             if selected_plot_type == "scatter": plot_params['col_name_y'] = y_selection
             elif selected_plot_type == "bar_chart": plot_params['y_col'] = y_selection
-        
         if selected_plot_type in ["kde", "scatter", "bar_chart", "count_plot"]:
             plot_params['hue_col'] = st.selectbox("Hue (optional):", [None] + effective_categorical_cols, key="plot_param_hue_col")
         
@@ -260,83 +266,91 @@ with tab_plots:
         st.subheader("2. Adjust Plot-Specific Options")
         
         palette_options = [None, 'pastel', 'husl', 'Set2', 'flare', 'viridis', 'mako']
-
         if selected_plot_type == "histogram":
             is_numeric = bool(plot_params.get('col_name') and plot_params.get('col_name') in effective_numerical_cols)
             plot_params['bins'] = st.slider("Bins:", 10, 100, 30, key="hist_bins")
             if is_numeric:
                 plot_params['kde'] = st.checkbox("Overlay KDE?", key="hist_kde")
-                if plot_params.get('kde'):
-                    plot_params['kde_line_color'] = st.color_picker("KDE Line Color:", "#FF5733", key="hist_kde_color")
+                if plot_params.get('kde'): plot_params['kde_line_color'] = st.color_picker("KDE Line Color:", "#FF5733", key="hist_kde_color")
             plot_params['color'] = st.color_picker("Bar Color", "#1f77b4", key="hist_color")
-            plot_params['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], key="hist_stat", help="The aggregate statistic for each bar.")
-        
+            plot_params['stat'] = st.selectbox("Statistic:", ["count", "frequency", "density", "probability"], key="hist_stat")
         elif selected_plot_type == "kde":
             plot_params['fill'] = st.checkbox("Fill KDE plot?", value=True, key="kde_fill")
             plot_params['alpha'] = st.slider("Alpha:", 0.0, 1.0, 0.7, key="kde_alpha")
             plot_params['linewidth'] = st.slider("Line Width:", 0.5, 5.0, 1.5, key="kde_linewidth")
-        
         elif selected_plot_type == "scatter":
-            if plot_params.get('col_name_x') and plot_params.get('col_name_x') in effective_categorical_cols:
-                st.warning(f"💡 Note: X-axis is categorical. This will produce a strip plot-like visualization.")
+            if plot_params.get('col_name_x') and plot_params.get('col_name_x') in effective_categorical_cols: st.warning("💡 Note: X-axis is categorical. This will produce a strip plot-like visualization.")
             plot_params["alpha"] = st.slider("Point Alpha:", 0.0, 1.0, value=0.5, key="scatter_alpha")
             plot_params['s'] = st.slider("Point Size:", 10, 200, value=50, key="scatter_s")
-        
         elif selected_plot_type == "bar_chart":
-            plot_params['estimator'] = st.selectbox("Estimator:", ['mean', 'median', 'sum'], key="bar_estimator", help="Method for aggregating the Y-axis value.")
-            plot_params['errorbar'] = st.selectbox("Error Bars:", [None, "sd", "ci", "se", "pi"], key="bar_errorbar", help="Show uncertainty around the bar's height.")
+            plot_params['estimator'] = st.selectbox("Estimator:", ['mean', 'median', 'sum'], key="bar_estimator")
+            plot_params['errorbar'] = st.selectbox("Error Bars:", [None, "sd", "ci", "se", "pi"], key="bar_errorbar")
             plot_params['palette'] = st.selectbox("Color Palette:", options=palette_options, key="bar_palette")
             plot_params['alpha'] = st.slider("Bar Alpha:", 0.1, 1.0, value=1.0, key="bar_alpha")
-
         elif selected_plot_type == "count_plot":
             plot_params['dodge'] = st.checkbox("Separate bars by hue", value=True, key="count_dodge")
             plot_params['palette'] = st.selectbox("Color Palette:", options=palette_options, key="count_palette")
             plot_params['alpha'] = st.slider("Bar Alpha:", 0.1, 1.0, value=1.0, key="count_alpha")
-
         elif selected_plot_type == "crosstab_heatmap":
             plot_params['index_names_ct'] = st.multiselect("Index (rows):", options=effective_categorical_cols, key="heatmap_idx")
             plot_params['column_names_ct'] = st.multiselect("Columns:", options=effective_categorical_cols, key="heatmap_col")
             plot_params['annot'] = st.checkbox("Show values?", value=True, key="heatmap_annot")
-            if plot_params.get('annot'):
-                plot_params['fmt'] = st.text_input("Value Format:", ".0f", key="heatmap_fmt")
+            if plot_params.get('annot'): plot_params['fmt'] = st.text_input("Value Format:", ".0f", key="heatmap_fmt")
             plot_params['cmap'] = st.text_input("Color Map:", "YlGnBu", key="heatmap_cmap")
 
-    st.markdown("---")
-    if st.button(f"Generate {selected_plot_type}", key="gen_dyn_plot"):
-        ready_to_plot = False
-        if selected_plot_type in ["histogram", "kde"] and plot_params.get('col_name'): ready_to_plot = True
-        elif selected_plot_type == "scatter" and plot_params.get('col_name_x') and plot_params.get('col_name_y'): ready_to_plot = True
-        elif selected_plot_type in ["bar_chart", "count_plot"] and plot_params.get('x_col'): ready_to_plot = True
-        elif selected_plot_type == "crosstab_heatmap" and plot_params.get('index_names_ct') and plot_params.get('column_names_ct'): ready_to_plot = True
-        
-        if ready_to_plot:
-            final_plot_params = {k: v for k, v in plot_params.items() if v is not None}
-            for bool_key in ['kde', 'fill', 'annot', 'dodge']:
-                if bool_key in plot_params and plot_params[bool_key] is False:
-                    final_plot_params[bool_key] = False
+        # --- This is the SINGLE "Generate Single Plot" button ---
+        st.markdown("---")
+        if st.button("Generate Single Plot", key="gen_dyn_plot"):
+            ready_to_plot = False
+            if selected_plot_type in ["histogram", "kde"] and plot_params.get('col_name'): ready_to_plot = True
+            elif selected_plot_type == "scatter" and plot_params.get('col_name_x') and plot_params.get('col_name_y'): ready_to_plot = True
+            elif selected_plot_type in ["bar_chart", "count_plot"] and plot_params.get('x_col'): ready_to_plot = True
+            elif selected_plot_type == "crosstab_heatmap" and plot_params.get('index_names_ct') and plot_params.get('column_names_ct'): ready_to_plot = True
             
-            dynamic_plot_config = [{"type": selected_plot_type, "params": final_plot_params}]
-            query_params_plots = {"include_columns": include_cols, "exclude_columns": exclude_cols}
-            try:
-                with st.spinner(f"Generating {selected_plot_type}..."):
-                    response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=dynamic_plot_config, params=query_params_plots) 
-                    response.raise_for_status()
-                    st.image(response.content, caption=f"Generated {selected_plot_type}", use_column_width=True)
-                    st.markdown("---")
-                    config_str = str(dynamic_plot_config[0])
-                    add_button_key = f"add_plot_{hash(config_str)}"
-                    if st.button("Add Plot to My Dashboard", key = add_button_key):
-                        if dynamic_plot_config[0] not in st.session_state.saved_plot_configs:
-                            st.session_state.saved_plot_configs.append(dynamic_plot_config[0])
-                            st.success(f"'{selected_plot_type}' plot configuration saved!")
-                        else:
-                            st.warning("This exact plot configuration is already saved.")
+            if ready_to_plot:
+                final_plot_params = {k: v for k, v in plot_params.items() if v is not None}
+                for bool_key in ['kde', 'fill', 'annot', 'dodge']:
+                    if bool_key in plot_params and plot_params[bool_key] is False: final_plot_params[bool_key] = False
+                dynamic_plot_config = [{"type": selected_plot_type, "params": final_plot_params}]
+                query_params_plots = {"include_columns": include_cols, "exclude_columns": exclude_cols}
+                try:
+                    with st.spinner(f"Generating {selected_plot_type}..."):
+                        response = requests.post(f"{FASTAPI_BASE_URL}/plots/dashboard", json=dynamic_plot_config, params=query_params_plots)
+                        response.raise_for_status()
+                        st.session_state.last_generated_plot_config = dynamic_plot_config[0]
+                        st.session_state.last_generated_plot_image = response.content
+                except Exception as e:
+                    st.error(f"Failed to generate plot. API Error: {e}")
+                    st.session_state.last_generated_plot_config = None
+                    st.session_state.last_generated_plot_image = None
+            else:
+                st.warning("Please select all necessary columns/parameters for the chosen plot type.")
 
-            except Exception as e:
-                st.error(f"Failed to generate plot. API Error: {e}")
-        else: 
-            st.warning("Please select all necessary columns/parameters for the chosen plot type.")
+    # --- 3. LAST PLOT DISPLAY AREA ---
+    st.markdown("---")
+    st.subheader("Last Generated Plot")
+    if st.session_state.get('last_generated_plot_image'):
+        st.image(st.session_state.last_generated_plot_image, caption="Last Generated Plot", use_column_width=True)
+        
+        config_str = str(st.session_state.get('last_generated_plot_config', ''))
+        add_button_key = f"add_plot_{hash(config_str)}"
 
+        if st.button("Add Plot to My Dashboard", key=add_button_key):
+            plot_config = st.session_state.last_generated_plot_config
+            if plot_config and plot_config not in st.session_state.saved_plot_configs:
+                st.session_state.saved_plot_configs.append(plot_config)
+                st.success(f"Plot configuration saved! The 'Saved Plots' count in the sidebar has been updated.")
+                # Clear the last generated plot so it doesn't get saved again on a refresh
+                st.session_state.last_generated_plot_config = None
+                st.session_state.last_generated_plot_image = None
+                st.rerun()
+            elif not plot_config:
+                 st.warning("Could not save the plot. Please generate a new one.")
+            else:
+                st.warning("This exact plot configuration is already saved.")
+    else:
+        st.info("Your most recently generated plot will appear here.")
+ 
 with tab_descriptive_stats:
     st.header("Descriptive Statistics")
     
