@@ -10,6 +10,8 @@ from api_data_manager import get_active_data_manager, load_dataset, AVAILABLE_DA
 import api_descriptive_handlers as desc_api
 import api_plot_handlers as plots_api
 import schemas
+import os, re, pathlib
+SAVED_DASHBOARDS_DIR = pathlib.Path("saved_dashboards")
 
 # --- Lifespan Event Handler ---
 @asynccontextmanager
@@ -20,6 +22,8 @@ async def lifespan(app: FastAPI):
     """
     print("FastAPI application startup (using lifespan)...")
     try:
+        SAVED_DASHBOARDS_DIR.mkdir(exist_ok=True)
+        print("Default data loading process initiated successfully.")
         get_active_data_manager()
         print("Default data loading process initiated successfully during lifespan startup.")
     except Exception as e:
@@ -53,6 +57,7 @@ TAG_GENERAL = "General & Dataset Management"
 TAG_DATA_INFO = "Data Information"
 TAG_DESCRIPTIVE = 'Descriptive Statistics'
 TAG_PLOTS = "Plot Generation"
+TAG_DASHBOARDS = "Saved Dashboards"
 
 # --- General & Dataset Endpoints ---
 @app.get("/api/health", tags=[TAG_GENERAL])
@@ -194,6 +199,77 @@ async def post_filter_data_endpoint(payload: schemas.FilterConditionRequest, df:
         return schemas.DataFrameRecordsResponse(records=result_records)
     except (ValueError, TypeError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+# main.py
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Safely sanitizes a filename. It removes the extension,
+    cleans the base name of unsafe characters, and re-applies
+    the .json extension.
+    """
+    # Isolate the base name by removing the .json extension if it exists
+    if filename.endswith('.json'):
+        filename = filename[:-5]
+
+    # Remove any characters that could be used for path traversal
+    filename = re.sub(r'[./\\]', '', filename)
+
+    # Re-add the .json extension to the clean base name
+    return filename + '.json'
+
+@app.post("/api/dashboards/save/{filename}", response_model=schemas.StatusResponse, tags=[TAG_DASHBOARDS])
+async def save_dashboard_config(filename: str, payload: schemas.DashboardState):
+    """Saves a dashboard configuration to a file."""
+    safe_filename = sanitize_filename(filename)
+    if not safe_filename or len(safe_filename) <= 5:
+        raise HTTPException(status_code=400, detail="Invalid filename provided.")
+    
+    file_path = SAVED_DASHBOARDS_DIR / safe_filename
+    try:
+        with open(file_path, 'w') as f:
+            f.write(payload.model_dump_json(indent=2))
+        return {"status": "success", "message": f"Dashboard '{safe_filename}' saved."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save dashboard: {e}")
+
+@app.get("/api/dashboards", response_model=List[str], tags=[TAG_DASHBOARDS])
+async def list_saved_dashboards():
+    """Lists all available saved dashboard files."""
+    if not SAVED_DASHBOARDS_DIR.is_dir():
+        return []
+    return [f for f in os.listdir(SAVED_DASHBOARDS_DIR) if f.endswith('.json')]
+
+@app.get("/api/dashboards/{filename}", response_model=schemas.DashboardState, tags=[TAG_DASHBOARDS])
+async def load_dashboard_config(filename: str):
+    """Loads a specific dashboard configuration file."""
+    safe_filename = sanitize_filename(filename)
+    file_path = SAVED_DASHBOARDS_DIR / safe_filename
+    
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Dashboard file not found.")
+    
+    try:
+        with open(file_path, 'r') as f:
+            data = schemas.DashboardState.model_validate_json(f.read())
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load or parse dashboard: {e}")
+    
+@app.delete("/api/dashboards/delete/{filename}", response_model=schemas.StatusResponse, tags= [TAG_DASHBOARDS])
+async def delete_dashboard_config(filename: str):
+    """Deletes a specific dashboard configuration file."""
+    safe_filename = sanitize_filename(filename)
+    file_path = SAVED_DASHBOARDS_DIR / safe_filename
+
+    if not file_path.is_file():
+        raise HTTPException(status_code= 404, detail = "Dashboard file not found.")
+    try:
+        os.remove(file_path)
+        return {"status": "success", "message": f"Dashboard '{safe_filename}' deleted."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete dashboard:  {e}")
+
 
 # --- Plotting Endpoints ---
 @app.post("/api/plots/dashboard", tags=[TAG_PLOTS], response_class=StreamingResponse)

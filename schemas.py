@@ -133,6 +133,16 @@ class FilterConditionRequest(BaseModel):
     cols: List[str] = Field(..., examples = [["cut"], ["cut", "color"]])
     values: List[Any] = Field(..., examples=[["Ideal"], ["Ideal", "E"]])
 
+class FilterState(BaseModel):
+    """Defines the state of the column filters."""
+    include_cols: List[str]
+    visible_cols: List[str]
+class DashboardState(BaseModel):
+    """The complete state of a saved dashboard configuration."""
+    dataset_name: str
+    plot_configs: List[Dict[str, Any]]
+    filter_state: FilterState
+
 
 
 

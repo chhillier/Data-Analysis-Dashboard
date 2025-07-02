@@ -33,7 +33,16 @@ def get_available_datasets() -> List[str]:
     except Exception as e:
         st.error(f"Could not fetch dataset list from API: {e}")
         return []
-
+@st.cache_data(ttl=30)
+def get_saved_dashboards() -> List[str]:
+    """Fetches the list of saved dashboard files from the API."""
+    try:
+        response = requests.get(f"{FASTAPI_BASE_URL}/dashboards")
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        st.error(f"Could not fetch saved dashboards: {e}")
+        return []
 def display_df_from_api_split_response(response_data_split: Dict[str, Any], success_message: str = "Data loaded.", index_level_names: Optional[List[str]] = None):
     """Reconstructs and displays a DataFrame from a 'split' format JSON response."""
     if not isinstance(response_data_split, dict) or any(k not in response_data_split for k in ['index', 'columns', 'data']):
@@ -68,7 +77,6 @@ if 'app_initialized' not in st.session_state:
     st.session_state.display_mode_active = False
     st.session_state.custom_dashboard_image = None
     st.session_state.include_cols = []
-    # 'visible_cols' is now initialized after the API call, so it's not needed here.
     st.rerun()
 
 # --- Data-Dependent State ---
@@ -80,8 +88,6 @@ if column_data:
 else:
     all_columns, numerical_cols, categorical_cols = [], [], []
 
-# <<< KEY CHANGE: Initialize or update the 'visible_cols' state right after getting the column list.
-# This ensures it resets correctly when the app starts or the dataset changes.
 if 'visible_cols' not in st.session_state or st.session_state.get('active_dataset_changed', False):
     st.session_state.visible_cols = all_columns
     st.session_state.active_dataset_changed = False
@@ -92,9 +98,8 @@ def exit_display_mode():
     st.session_state.display_mode_active = False
     st.session_state.custom_dashboard_image = None
     st.session_state.include_cols = []
-    st.session_state.visible_cols = all_columns # Reset to all
+    st.session_state.visible_cols = all_columns
 
-# <<< KEY CHANGE: This logic now correctly uses 'visible_cols'.
 include_cols = st.session_state.get('include_cols', [])
 visible_cols = st.session_state.get('visible_cols', all_columns)
 
@@ -105,6 +110,7 @@ else:
 
 effective_categorical_cols = [col for col in categorical_cols if col in effective_cols]
 effective_numerical_cols = [col for col in numerical_cols if col in effective_cols]
+
 
 if st.session_state.get('display_mode_active', False):
     # --- DISPLAY MODE UI ---
@@ -124,35 +130,140 @@ else:
     # --- Sidebar UI ---
     st.sidebar.title("Controls & Options")
     
+    with st.sidebar.expander("💾 Save & Load Dashboard", expanded=True):
+    
+        # --- LOAD ---
+        st.subheader("Load Configuration")
+        saved_dashboards_list = get_saved_dashboards()
+        selected_dashboard_to_load = st.selectbox(
+            "Select a saved dashboard:",
+            options=[""] + saved_dashboards_list,
+            key="dashboard_loader_select"
+        )
+
+        def handle_dashboard_load():
+            """Callback to load a selected dashboard state."""
+            filename = st.session_state.dashboard_loader_select
+            if not filename:
+                return
+            
+            try:
+                response = requests.get(f"{FASTAPI_BASE_URL}/dashboards/{filename}")
+                response.raise_for_status()
+                loaded_state = response.json()
+                
+                new_dataset = loaded_state['dataset_name']
+                requests.post(f"{FASTAPI_BASE_URL}/datasets/select/{new_dataset}").raise_for_status()
+
+                st.session_state.active_dataset = new_dataset
+                st.session_state.saved_plot_configs = loaded_state['plot_configs']
+                st.session_state.include_cols = loaded_state['filter_state']['include_cols']
+                st.session_state.visible_cols = loaded_state['filter_state']['visible_cols']
+                st.session_state.active_dataset_changed = True
+                
+                st.cache_data.clear()
+                st.session_state.dashboard_loader_select = ""
+                st.success(f"Dashboard '{filename}' loaded!")
+                
+            except Exception as e:
+                st.error(f"Failed to load dashboard: {e}")
+
+        st.button("Load Selected", on_click=handle_dashboard_load, disabled=(not selected_dashboard_to_load))
+
+        st.markdown("---")
+
+        # --- SAVE ---
+        st.subheader("Save Current Configuration")
+        save_filename = st.text_input("Save as (e.g., my-analysis):", key="dashboard_saver_input")
+        
+        def handle_dashboard_save():
+            """Callback to save the current dashboard state."""
+            filename = st.session_state.dashboard_saver_input
+            if not filename:
+                st.warning("Please enter a filename.")
+                return
+
+            current_state = {
+                "dataset_name": st.session_state.active_dataset,
+                "plot_configs": st.session_state.saved_plot_configs,
+                "filter_state": {
+                    "include_cols": st.session_state.include_cols,
+                    "visible_cols": st.session_state.visible_cols
+                }
+            }
+
+            try:
+                response = requests.post(f"{FASTAPI_BASE_URL}/dashboards/save/{filename}", json=current_state)
+                response.raise_for_status()
+                st.success(f"Dashboard saved as '{filename}.json'")
+                get_saved_dashboards.clear()
+                st.session_state.dashboard_saver_input = ""
+            except Exception as e:
+                st.error(f"Failed to save dashboard: {e}")
+
+        st.button("Save", on_click=handle_dashboard_save, disabled=(not save_filename))
+
+        st.markdown("---")
+        st.subheader("Delete Configuration")
+        dashboard_to_delete = st.selectbox(
+            "Select a dashboard to delete:",
+            options=[""] + saved_dashboards_list,
+            key="dashboard_deleter_select"
+        )
+        def handle_dashboard_delete():
+            """Callback to delete a saved dashboard file."""
+            filename = st.session_state.dashboard_deleter_select
+            if not filename:
+                return
+            try:
+                response = requests.delete(f"{FASTAPI_BASE_URL}/dashboards/delete/{filename}")
+                response.raise_for_status()
+                st.success(f"Dashboard '{filename}' deleted.")
+                get_saved_dashboards.clear()
+                st.session_state.dashboard_deleter_select = ""
+            except Exception as e:
+                st.error(f"Failed to delete dashboard: {e}")
+        st.button(
+            "Delete Selected",
+            on_click=handle_dashboard_delete,
+            disabled= (not dashboard_to_delete),
+            type="primary"
+        )
+
+    
     with st.sidebar.expander("Column Filters", expanded=True):
         st.info("💡 'Include' filter takes priority over the 'Visible' filter.")
 
         st.subheader("Include Specific Columns")
+        # new_dashboard.py (in the sidebar)
+
+        # Define the callback for this button
+        def clear_include_selections():
+            st.session_state.include_cols = []
+
         st.multiselect(
             "Only show these columns:",
             options=all_columns,
             key="include_cols",
             help="If you select any columns here, only these will be used."
         )
-        if st.button("Clear Include Selections", key="reset_include"):
-            st.session_state.include_cols = []
-            st.rerun()
 
-        st.markdown("---")
-
-        # <<< KEY CHANGE: This is the pre-populated filter you wanted.
+        # Attach the callback to the button using on_click
+        if st.button("Clear Include Selections", on_click=clear_include_selections, key="reset_include"):
+            pass
+        
         st.subheader("Filter Visible Columns")
 
         def reset_visible_columns():
             st.session_state.visible_cols = all_columns
+
         st.multiselect(
             "Select columns to display:",
             options=all_columns,
             key="visible_cols",
-            default=st.session_state.get('visible_cols', all_columns), # Pre-populate with all columns
             help="De-select columns here to hide them. Ignored if 'Include' is used."
         )
-        if st.button("Reset Visible Columns", on_click= reset_visible_columns, key="reset_visible"):
+        if st.button("Reset Visible Columns", on_click=reset_visible_columns, key="reset_visible"):
             pass
 
     st.sidebar.markdown("---")
@@ -178,7 +289,26 @@ else:
             st.session_state.saved_plot_configs = []
             st.rerun()
 
-    # --- Main Page Content ---
+    # <<< KEY CHANGE: The entire dataset switching logic is now here. >>>
+    
+    # 1. Define the callback function. Note its indentation is at the top level of the script logic.
+    def handle_dataset_change():
+        new_dataset = st.session_state.dataset_selector
+        with st.spinner(f"Loading '{new_dataset}'..."):
+            try:
+                response = requests.post(f"{FASTAPI_BASE_URL}/datasets/select/{new_dataset}")
+                response.raise_for_status()
+                st.session_state.active_dataset = new_dataset
+                st.session_state.active_dataset_changed = True
+                st.session_state.include_cols = []
+                st.session_state.saved_plot_configs = []
+                st.session_state.last_generated_plot_config = None
+                st.session_state.last_generated_plot_image = None
+                st.cache_data.clear()
+            except Exception as e:
+                st.error(f"Failed to switch dataset: {e}")
+
+    # 2. Define the UI elements.
     st.markdown("### Select a Dataset")
     available_datasets = get_available_datasets()
     if available_datasets:
@@ -187,34 +317,20 @@ else:
         except (ValueError, TypeError):
             default_index = 0
 
-        selected_dataset = st.selectbox("Choose a dataset:", available_datasets, index=default_index, key="dataset_selector")
-        
-        if selected_dataset and (selected_dataset != st.session_state.active_dataset):
-            with st.spinner(f"Loading '{selected_dataset}'..."):
-                try:
-                    response = requests.post(f"{FASTAPI_BASE_URL}/datasets/select/{selected_dataset}")
-                    response.raise_for_status()
-                    
-                    st.session_state.active_dataset = selected_dataset
-                    st.session_state.active_dataset_changed = True # Flag that we need to reset columns
-                    
-                    # Clear other specific states
-                    st.session_state.include_cols = []
-                    st.session_state.saved_plot_configs = []
-                    st.session_state.last_generated_plot_config = None
-                    st.session_state.last_generated_plot_image = None
+        st.selectbox(
+            "Choose a dataset:",
+            available_datasets,
+            index=default_index,
+            key="dataset_selector",
+            on_change=handle_dataset_change # The callback is attached here
+        )
+    # The old 'if selected_dataset...' block is now gone.
 
-                    st.cache_data.clear()
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to switch dataset: {e}")
-
-    # ... (The rest of the file is identical and correct) ...
-    # (Tabs for Plots and Descriptive Statistics)
     st.markdown("---")
     tab_plots, tab_descriptive_stats = st.tabs(["📊 Plot Dashboard", "🔢 Descriptive Statistics"])
 
     with tab_plots:
+        # (The rest of your code for this tab...)
         with st.expander("Configure and Generate a Single Plot", expanded=True):
             st.subheader("1. Select Plot Type and Axes")
             plot_types_available = ["histogram", "kde", "scatter", "bar_chart", "count_plot", "crosstab_heatmap"]
@@ -319,6 +435,7 @@ else:
             st.info("Your most recently generated plot will appear here.")
             
     with tab_descriptive_stats:
+        # (The rest of your code for this tab...)
         st.header("Descriptive Statistics")
         query_params_for_desc_tab = {"include_columns": effective_cols, "exclude_columns": []}
         
