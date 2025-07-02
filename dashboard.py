@@ -89,8 +89,9 @@ if 'app_initialized' not in st.session_state:
     st.session_state.show_crosstab_section = False
     
     # Initialize the states for the filter widgets as empty lists
+    st.session_state.column_selection_mode = "Excluding selected columns"
     st.session_state.dashboard_include_cols = []
-    st.session_state.dashboard_exclude_cols = []
+    st.session_state.dashboard_exclude_mode_selector = None
 
     st.session_state.saved_plot_configs = []
     st.session_state.last_generated_plot_config = None
@@ -109,11 +110,10 @@ else:
     st.session_state.all_columns, st.session_state.numerical_cols, st.session_state.categorical_cols = [], [], []
 
 all_columns: List[str] = st.session_state.get('all_columns', [])
+if st.session_state.dashboard_exclude_mode_selector is None:
+    st.session_state.dashboard_exclude_mode_selector = all_columns
 numerical_cols: List[str] = st.session_state.get('numerical_cols', [])
 categorical_cols: List[str] = st.session_state.get('categorical_cols', [])
-
-if 'dashboard_exclude_mode_selector' not in st.session_state:
-    st.session_state.dashboard_exclude_mode_selector = all_columns
 
 # --- Sidebar UI ---
 st.sidebar.title("Controls & Options")
@@ -130,37 +130,38 @@ if num_saved_plots > 0:
 
 st.sidebar.markdown("---")
 
-# --- REPLACEMENT FOR SIDEBAR EXPANDER ---
+# --- FINAL REPLACEMENT FOR THE SIDEBAR EXPANDER ---
 with st.sidebar.expander("Column Filters (for Plots & Statistics)", expanded=True):
+
     selection_mode = st.radio(
         "Filter columns by:",
         ["Excluding selected columns", "Including selected columns"],
         key="column_selection_mode",
     )
-
+    # --- Logic for "Including" Mode ---
     if selection_mode == "Including selected columns":
         st.caption("Choose the specific columns to use for all plots and statistics.")
         st.multiselect(
             "Columns to Include:",
             options=all_columns,
-            key="dashboard_include_cols",  # This widget just updates the state
+            key="dashboard_include_cols",
         )
+        # This button ONLY appears in "Include" mode and has ONE job.
+        if st.button("Clear Selections"):
+            st.session_state.dashboard_include_cols = []
+            st.rerun()
+    # --- Logic for "Excluding" Mode ---
     else:  # Excluding selected columns
         st.caption("All columns are included by default. Choose any to remove from the list.")
         st.multiselect(
             "Visible Columns:",
             options=all_columns,
-            key="dashboard_exclude_mode_selector",  # This widget just updates the state
+            key="dashboard_exclude_mode_selector",
         )
-
-    def reset_column_filters():
-        st.session_state.dashboard_include_cols = []
-        st.session_state.dashboard_exclude_mode_selector = all_columns
-        # No change needed to the callback itself, it's correct.
-
-    st.button("Reset Column Filters", on_click=reset_column_filters)
-
-
+        # This button ONLY appears in "Exclude" mode and has ONE job.
+        if st.button("Reset Visible Columns"):
+            st.session_state.dashboard_exclude_mode_selector = all_columns
+            st.rerun()
 # --- Main Page Content ---
 st.markdown("### Select a Dataset")
 available_datasets = get_available_datasets()
