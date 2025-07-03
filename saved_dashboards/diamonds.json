@@ -1,0 +1,66 @@
+{
+  "dataset_name": "diamonds",
+  "plot_configs": [
+    {
+      "type": "scatter",
+      "params": {
+        "col_name_x": "carat",
+        "col_name_y": "depth",
+        "hue_col": "color",
+        "alpha": 0.5,
+        "s": 50
+      }
+    },
+    {
+      "type": "count_plot",
+      "params": {
+        "x_col": "cut",
+        "hue_col": "color",
+        "dodge": true,
+        "alpha": 1.0
+      }
+    },
+    {
+      "type": "crosstab_heatmap",
+      "params": {
+        "index_names_ct": [
+          "cut"
+        ],
+        "column_names_ct": [
+          "color"
+        ],
+        "annot": true,
+        "fmt": ".0f",
+        "cmap": "YlGnBu"
+      }
+    },
+    {
+      "type": "kde",
+      "params": {
+        "col_name": "depth",
+        "hue_col": "cut",
+        "fill": true,
+        "alpha": 0.7,
+        "linewidth": 1.5
+      }
+    }
+  ],
+  "filter_state": {
+    "include_cols": [],
+    "visible_cols": [
+      "carat",
+      "cut",
+      "color",
+      "clarity",
+      "depth",
+      "table",
+      "price",
+      "x",
+      "y",
+      "z",
+      "price_per_carat",
+      "high_price",
+      "price_per_carat_with taxes"
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "dataset_name": "bank_additional",
+  "plot_configs": [
+    {
+      "type": "histogram",
+      "params": {
+        "col_name": "age",
+        "bins": 30,
+        "kde": false,
+        "color": "#1f77b4",
+        "stat": "count"
+      }
+    },
+    {
+      "type": "count_plot",
+      "params": {
+        "x_col": "job",
+        "hue_col": "marital",
+        "dodge": true,
+        "alpha": 1.0
+      }
+    }
+  ],
+  "filter_state": {
+    "include_cols": [],
+    "visible_cols": [
+      "age",
+      "job",
+      "marital",
+      "education",
+      "default",
+      "housing",
+      "loan",
+      "contact",
+      "month",
+      "day_of_week",
+      "duration",
+      "campaign",
+      "pdays",
+      "previous",
+      "poutcome",
+      "emp.var.rate",
+      "cons.price.idx",
+      "cons.conf.idx",
+      "euribor3m",
+      "nr.employed",
+      "y"
+    ]
+  }
+}
