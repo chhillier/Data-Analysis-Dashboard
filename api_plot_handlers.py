@@ -8,8 +8,7 @@ import io
 import math
 from typing import List, Dict, Any, Optional
 
-# Assuming your StaticPlots class is in 'static_plots.py' (or 'original_static_plots.py')
-# and its __init__ method accepts a DataFrame.
+
 from static_plots import StaticPlots 
 # Import the utility function for shaping data
 from api_utils import get_shaped_dataframe 

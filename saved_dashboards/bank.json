@@ -1,23 +1,45 @@
 {
-  "dataset_name": "bank_additional",
+  "dataset_name": "bank_additional_full",
   "plot_configs": [
     {
-      "type": "histogram",
+      "type": "count_plot",
       "params": {
-        "col_name": "age",
-        "bins": 30,
-        "kde": false,
-        "color": "#1f77b4",
-        "stat": "count"
+        "x_col": "education",
+        "hue_col": "job",
+        "dodge": true,
+        "alpha": 1.0
+      }
+    },
+    {
+      "type": "count_plot",
+      "params": {
+        "x_col": "education",
+        "hue_col": "housing",
+        "dodge": true,
+        "alpha": 1.0
       }
     },
     {
       "type": "count_plot",
       "params": {
         "x_col": "job",
-        "hue_col": "marital",
+        "hue_col": "housing",
         "dodge": true,
         "alpha": 1.0
+      }
+    },
+    {
+      "type": "crosstab_heatmap",
+      "params": {
+        "index_names_ct": [
+          "job"
+        ],
+        "column_names_ct": [
+          "education"
+        ],
+        "annot": true,
+        "fmt": ".0f",
+        "cmap": "YlGnBu"
       }
     }
   ],

@@ -32,8 +32,6 @@ class ShapeResponse(BaseModel):
     columns : int
 
 class UniqueCountsResponse(BaseModel):
-    # This model expects a dictionary where keys are strings (e.g., column names or categories)
-    # and values are integers (the counts)
     counts: Dict[str, int]
 
 class InfoResponse(BaseModel):

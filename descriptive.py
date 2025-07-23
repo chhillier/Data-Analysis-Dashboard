@@ -3,10 +3,6 @@ import pandas as pd
 import numpy as np
 from typing import List, Optional, Union, Any
 
-# df = sns.load_dataset('diamonds')
-# print(df.head())
-# print(df['cut'].nunique())
-# print(df['clarity'].nunique())
 
 class Descriptive:
     def __init__(self,data):
@@ -93,7 +89,6 @@ class Descriptive:
         print(f"Received normalize: {normalize}, margins: {margins}, kwargs: {kwargs}")
         print(f"Shape of self.data (passed to this instance): {self.data.shape}")
 
-        # Validate names are in cat_data before list comprehension
         for name in index_names:
             if name not in cat_data: 
                 err_msg = f"Index name '{name}' not found in categorical data for crosstab. Available in cat_data: {cat_data.columns.tolist()}"
@@ -145,7 +140,7 @@ if __name__=="__main__":
     pd.set_option('display.width', 1000)
     
     print("--- Initializing Diamonds instance ---")
-    diamonds_instance = Diamonds() # Use a consistent name, e.g., diamonds_instance
+    diamonds_instance = Diamonds() 
 
     print("\n--- Testing basic descriptive methods ---")
     print(diamonds_instance.check_unique_counts())

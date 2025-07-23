@@ -289,7 +289,6 @@ else:
             st.session_state.saved_plot_configs = []
             st.rerun()
 
-    # <<< KEY CHANGE: The entire dataset switching logic is now here. >>>
     
     # 1. Define the callback function. Note its indentation is at the top level of the script logic.
     def handle_dataset_change():
@@ -324,7 +323,6 @@ else:
             key="dataset_selector",
             on_change=handle_dataset_change # The callback is attached here
         )
-    # The old 'if selected_dataset...' block is now gone.
 
     st.markdown("---")
     tab_plots, tab_descriptive_stats = st.tabs(["📊 Plot Dashboard", "🔢 Descriptive Statistics"])
@@ -435,7 +433,6 @@ else:
             st.info("Your most recently generated plot will appear here.")
             
     with tab_descriptive_stats:
-        # (The rest of your code for this tab...)
         st.header("Descriptive Statistics")
         query_params_for_desc_tab = {"include_columns": effective_cols, "exclude_columns": []}
         

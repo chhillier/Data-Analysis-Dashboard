@@ -10,8 +10,6 @@ import csv
 
 # --- Dataset Discovery and Management ---
 
-# This assumes 'api_data_manager.py' is in your 'full_stack_project' root,
-# and 'datasets' is a subfolder also in 'full_stack_project'.
 PROJECT_ROOT_DIR = Path(__file__).resolve().parent 
 DATASETS_DIR = PROJECT_ROOT_DIR / "datasets"
 
@@ -37,10 +35,10 @@ def discover_datasets() -> Dict[str, Path]:
     # 2. Scan for CSVs in specified subfolders
     # 2. Scan for CSVs in all immediate subfolders
     for data_sub_dir in DATASETS_DIR.iterdir():
-        if data_sub_dir.is_dir(): # Ensure it's a directory
+        if data_sub_dir.is_dir():
             subfolder_name = data_sub_dir.name
             for f_path in data_sub_dir.glob("*.csv"):
-                # ... the rest of your logic for naming keys remains the same ...
+     
                 dataset_name_key = f_path.stem.lower().replace('-', '_').replace(' ', '_')
                 if dataset_name_key in available_files:
                     dataset_name_key = f"{subfolder_name.replace('-', '_')}_{dataset_name_key}"
@@ -157,9 +155,6 @@ class CSVDataManager(BaseDataManager):
         super().__init__(source_name=source_name or Path(file_path).stem)
         self.file_path = file_path
 
-# In api_data_manager.py, inside the CSVDataManager class
-
-    ### START: REPLACE THIS ENTIRE METHOD ###
     def _load_data_from_source(self) -> pd.DataFrame:
         print(f"CSVDataManager: Loading data from '{self.file_path}'...")
 
@@ -167,20 +162,18 @@ class CSVDataManager(BaseDataManager):
 
         try:
             with open(self.file_path, 'r', newline='', encoding='utf-8') as csvfile:
-                # Read a small sample of the file
-                sample = csvfile.read(4096)  # Read the first 4KB
-                # Use the Sniffer to deduce the delimiter from the sample
+            
+                sample = csvfile.read(4096)  
                 dialect = csv.Sniffer().sniff(sample, delimiters=',;')
                 delimiter = dialect.delimiter
                 print(f"INFO: Auto-detected delimiter '{delimiter}' for '{self.file_path}'.")
         except (csv.Error, UnicodeDecodeError) as e:
             print(f"WARNING: Could not auto-detect delimiter, defaulting to ','. Error: {e}")
-            delimiter = ',' # Fallback to comma if sniffing fails
+            delimiter = ',' 
         except Exception as e:
             print(f"WARNING: An unexpected error occurred during delimiter detection, defaulting to ','. Error: {e}")
             delimiter = ','
 
-        # Now, read the entire CSV file using the detected (or default) delimiter
         return pd.read_csv(self.file_path, sep=delimiter)
 
 if __name__ == "__main__":

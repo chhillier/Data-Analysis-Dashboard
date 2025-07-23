@@ -21,9 +21,6 @@ class StaticPlots(Descriptive):
         kde_enabled = kwargs.pop('kde', False)
         statistic_type = kwargs.pop('stat', 'count') # Use the stat from UI, or default
         kde_custom_line_color = kwargs.pop('kde_line_color', None)
-        # edge_color_from_kwargs = kwargs.pop('edgecolor', None) # For histplot bars
-
-        # remaining_kwargs now holds any other parameters (like your defensive pops will remove from this)
         remaining_hist_kwargs = kwargs.copy()
 
         # Your defensive popping for parameters not relevant to histplot
@@ -41,14 +38,13 @@ class StaticPlots(Descriptive):
             data=self.data,
             x=col_name,
             ax=ax,
-            color=color,  # Bar color from UI (passed as named arg)
-            bins=bins,    # Bins from UI (passed as named arg)
-            kde=False,    # IMPORTANT: We will draw KDE separately if enabled
-            stat=statistic_type, # Use the statistic type from UI
-            edgecolor='black', # Use edgecolor from UI if provided
+            color=color,
+            bins=bins, 
+            kde=False, 
+            stat=statistic_type, 
+            edgecolor='black',
             **remaining_hist_kwargs
         )
-        # In static_plots.py, inside the histogram method
 
     # --- Plot 2: The KDE Line (if enabled) ---
         if kde_enabled:
@@ -67,8 +63,6 @@ class StaticPlots(Descriptive):
 
                 print(f"DEBUG StaticPlots.histogram (Separate KDE): Plotting KDE for {col_name} with color='{final_kde_color_for_plot}', linewidth={kde_plot_linewidth}, alpha={kde_plot_alpha}")
 
-                # ### MODIFIED PART: Always use a twin axis for the separate KDE plot ###
-                # This ensures it's always drawn and visible with its own scaling, regardless of histogram stat.
                 ax2 = ax.twinx()
                 sns.kdeplot(
                     data=self.data,
@@ -78,9 +72,8 @@ class StaticPlots(Descriptive):
                     linewidth=kde_plot_linewidth,
                     alpha=kde_plot_alpha
                 )
-                ax2.set_yticks([])  # Hide secondary y-axis ticks
-                ax2.set_ylabel('')  # Hide secondary y-axis label
-                # ### END MODIFIED PART ###
+                ax2.set_yticks([]) 
+                ax2.set_ylabel('') 
             else:
                 print(f"INFO StaticPlots.histogram: KDE overlay skipped for non-numeric column '{col_name}'.")
                 
@@ -149,11 +142,7 @@ class StaticPlots(Descriptive):
             raise ValueError(f"Column '{col_name_y}' not found for scatter plot y-axis.")
         if hue_col and hue_col not in self.data.columns:
             raise ValueError(f"Hue column '{hue_col}' not found for scatter plot.")
-        # Add similar checks for size_col, style_col if you add them
 
-        # These are kwargs from plot_params that didn't match named args of this scatter method.
-        # Filter them to only include what sns.scatterplot might accept in its own **kwargs
-        # (which are typically passed to matplotlib.collections.PathCollection, e.g., 's', 'marker', 'linewidth')
         scatter_plot_kwargs = kwargs.copy()
         
         # Parameters from PlotParameter that are definitely NOT for sns.scatterplot
